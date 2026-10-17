@@ -113,6 +113,14 @@ input[type="checkbox"]{accent-color:var(--red);width:16px;height:16px}
 .calib{margin-top:28px;padding:18px 20px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:grid;gap:6px}
 .foot{padding:48px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--ink3);font-size:13px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
 
+/* sandbox entrance */
+.altcard{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;margin-top:28px;padding:20px 22px;border-radius:12px;border:1px dashed var(--ink3);color:var(--ink);text-decoration:none}
+.altcard:hover{border-style:solid;background:var(--surface)}
+.altcard h3{font-family:var(--serif);font-size:19px;margin:2px 0 4px}
+.altcard p{font-size:14px;color:var(--ink2);max-width:42em}
+.altcard .go{font-size:14px;color:var(--blue);white-space:nowrap}
+@media (max-width:560px){.altcard{grid-template-columns:minmax(0,1fr)}}
+
 /* run layout */
 .run{display:grid;grid-template-columns:180px minmax(0,760px);gap:56px;padding-top:20px;align-items:start}
 .rail{position:sticky;top:20px;display:grid;gap:2px}

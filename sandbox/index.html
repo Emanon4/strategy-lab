@@ -1,0 +1,1254 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body>
+<title>长期沙盘 · 战略推演</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Serif+SC:wght@600;900&display=swap">
+<style>
+/* Layout: a staff-map table. Gridded sandbox in the middle; unit cards marked with APP-6 frames on the left; scenario quadrants, assumption ledger and review on the right. */
+:root{
+  --bg:#E6EBE7; --table:#EDF1ED; --panel:#F8FAF7; --ink:#1B2829; --muted:#566663; --faint:#8A9894; --rule:#CAD3CD;
+  --grid:rgba(31,78,140,.075);
+  --accent:#1F4E8C; --accent-ink:#FFFFFF; --accent-soft:#DCE6F3;
+  --friend:#1F4E8C; --friend-fill:#D5E1F1;
+  --hostile:#B03838; --hostile-fill:#F3D9D8;
+  --neutral:#2E7748; --neutral-fill:#D5EADB;
+  --unknown:#9C7206; --unknown-fill:#F3E6C0;
+  --good:#2E7748; --bad:#B03838; --warn:#9C7206;
+  --display:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  --body:"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1719; --table:#131D20; --panel:#18242A; --ink:#DCE6E2; --muted:#94A6A1; --faint:#677A76; --rule:#2B3B40;
+    --grid:rgba(126,166,224,.07);
+    --accent:#86ACE3; --accent-ink:#0F1719; --accent-soft:#1E3148;
+    --friend:#86ACE3; --friend-fill:#1E3148;
+    --hostile:#E67C74; --hostile-fill:#3A2124;
+    --neutral:#70C08B; --neutral-fill:#1B3226;
+    --unknown:#E3BB57; --unknown-fill:#382F17;
+    --good:#70C08B; --bad:#E67C74; --warn:#E3BB57;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1719; --table:#131D20; --panel:#18242A; --ink:#DCE6E2; --muted:#94A6A1; --faint:#677A76; --rule:#2B3B40;
+  --grid:rgba(126,166,224,.07);
+  --accent:#86ACE3; --accent-ink:#0F1719; --accent-soft:#1E3148;
+  --friend:#86ACE3; --friend-fill:#1E3148;
+  --hostile:#E67C74; --hostile-fill:#3A2124;
+  --neutral:#70C08B; --neutral-fill:#1B3226;
+  --unknown:#E3BB57; --unknown-fill:#382F17;
+  --good:#70C08B; --bad:#E67C74; --warn:#E3BB57;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.app{max-width:1440px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 72px}
+h1,h2,h3,h4{text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .mark{color:var(--accent);flex:none}
+.brand h1{font-family:var(--display);font-weight:900;font-size:23px;letter-spacing:.03em;margin:0;line-height:1.2}
+.tag-line{font-size:12px;color:var(--muted);letter-spacing:.06em}
+.tabs{display:flex;gap:2px;background:var(--panel);border:1px solid var(--rule);border-radius:999px;padding:3px}
+.tabs button{border:0;background:none;padding:6px 15px;border-radius:999px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--panel)}
+.cnt{font-family:var(--mono);font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:0 6px;margin-left:2px}
+.tabs button[aria-selected="true"] .cnt{background:var(--panel);color:var(--ink)}
+.status{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:11.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--rule);color:var(--muted);background:var(--panel);white-space:nowrap}
+.chip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--faint);margin-right:6px;vertical-align:1px}
+.chip.on .dot{background:var(--good)}
+.chip.warn .dot{background:var(--warn)}
+
+/* controls */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-size:13px;line-height:1.4;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:3px 9px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+input,textarea,select{font:inherit;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:4px;padding:3px 6px;width:100%;min-width:0}
+input:hover,textarea:hover{border-color:var(--rule)}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);background:var(--panel);outline:none}
+textarea{resize:none;overflow:hidden;line-height:1.55;display:block}
+::placeholder{color:var(--faint);opacity:1}
+.field{border-color:var(--rule);background:var(--panel);padding:6px 8px}
+input[type="range"]{padding:0;accent-color:var(--accent)}
+input[type="date"]{font-family:var(--mono);font-size:13px}
+.lbl{font-size:12px;color:var(--muted)}
+.mono{font-family:var(--mono)}
+.sub{color:var(--muted);font-size:12.5px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.spacer{flex:1}
+.x{border:0;background:none;color:var(--faint);cursor:pointer;font-size:17px;line-height:1;padding:2px 5px;border-radius:4px}
+.x:hover{color:var(--bad)}
+.sym{flex:none;display:block}
+.chiprow{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.pill{font-size:12px;border:1px solid var(--rule);border-radius:999px;padding:1px 10px;background:transparent;cursor:pointer;color:var(--muted)}
+.pill[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.pill.static{cursor:default}
+.busy{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;flex-wrap:wrap}
+.pulse{width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite;flex:none}
+@keyframes pulse{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+
+/* board header */
+.boardbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:4px}
+.boardbar select{width:auto;max-width:100%;border-color:var(--rule);background:var(--panel);padding:6px 8px}
+.boardbar .title-in{flex:1 1 220px;font-weight:600;font-size:15px}
+.confirm{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--bad)}
+.qwrap{margin:4px 0 16px}
+.q{font-family:var(--display);font-weight:900;font-size:clamp(19px,2.4vw,27px);line-height:1.4;padding:4px 6px}
+.qmeta{display:flex;flex-wrap:wrap;gap:6px 20px;color:var(--muted);font-size:13px;padding-left:6px}
+.qmeta label{display:flex;align-items:center;gap:2px}
+.qmeta input{width:8.5em;font-family:var(--mono);font-size:12.5px}
+
+/* the sandbox table */
+.table{display:grid;gap:14px;grid-template-columns:minmax(250px,300px) minmax(0,1fr) minmax(290px,360px);grid-template-areas:"a b c";align-items:start;padding:14px;border-radius:10px;border:1px solid var(--rule);background-color:var(--table);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:40px 40px}
+.col{display:grid;gap:14px;min-width:0;align-content:start}
+.col-a{grid-area:a}.col-b{grid-area:b}.col-c{grid-area:c}
+@media (max-width:1120px){.table{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"b b" "a c"}}
+@media (max-width:720px){.table{grid-template-columns:minmax(0,1fr);grid-template-areas:"b" "a" "c";padding:10px}}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;min-width:0}
+.ph{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.ph h2{font-family:var(--display);font-weight:600;font-size:16px;margin:0;letter-spacing:.02em}
+.hint{color:var(--muted);font-size:12.5px;margin:0 0 10px;max-width:62ch}
+
+/* units (actors) */
+.units{display:grid;gap:10px}
+.unit{border:1px solid var(--rule);border-radius:6px;padding:6px 6px 4px;background:var(--table)}
+.unit-h{display:flex;align-items:center;gap:4px}
+.symbtn{border:0;background:none;padding:3px;cursor:pointer;border-radius:4px;flex:none}
+.symbtn:hover{background:var(--panel)}
+.unit-name{font-weight:700;font-size:14px}
+.side-tag{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.unit dl{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:0 2px;margin:2px 0 0}
+.unit dt{font-size:12px;color:var(--muted);padding:4px 0 0 4px}
+.unit dd{margin:0;min-width:0}
+.unit textarea{font-size:13px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:4px}
+
+/* variables */
+.vars{display:grid;gap:6px}
+.var{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:0 6px;padding-bottom:4px;border-bottom:1px solid var(--rule)}
+.var:last-child{border-bottom:0}
+.var > input{grid-column:1 / -1;font-weight:600}
+.var .pips{padding-left:6px}
+.rangebox label{white-space:nowrap}
+.pips{display:flex;gap:3px}
+.pip{width:15px;height:15px;border:1.5px solid var(--accent);border-radius:2px;background:transparent;padding:0;cursor:pointer}
+.pip.on{background:var(--accent)}
+.vnow{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:3.2em;text-align:right;white-space:nowrap}
+.vnow.up{color:var(--good)}.vnow.down{color:var(--bad)}
+
+/* rounds */
+.routes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:4px}
+.route{font-family:var(--mono);font-size:12px;border:1px solid var(--rule);background:var(--panel);border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--muted)}
+.route[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.timeline{display:grid;gap:12px;margin:10px 0 12px}
+.round{border:1px solid var(--rule);border-radius:8px;padding:10px 12px;background:var(--panel)}
+.round-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.rn{font-family:var(--display);font-weight:900;font-size:15px}
+.tu{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.mv{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;padding:4px 0}
+.mv .sym{margin-top:3px}
+.judge{margin-top:8px;padding:8px 10px;border-radius:6px;background:var(--table);border:1px solid var(--rule)}
+.dice{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-family:var(--mono);margin-bottom:4px}
+.dice .k{font-size:11px;color:var(--muted)}
+.roll{font-size:26px;font-weight:600;line-height:1;min-width:2ch;font-variant-numeric:tabular-nums}
+.res{font-family:var(--body);font-weight:700;font-size:13px;padding:1px 8px;border-radius:4px}
+.ok .roll{color:var(--good)} .ko .roll{color:var(--bad)}
+.ok .res{background:var(--neutral-fill);color:var(--good)}
+.ko .res{background:var(--hostile-fill);color:var(--bad)}
+.deltas{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.delta{font-size:12px;font-family:var(--mono);border:1px solid var(--rule);border-radius:4px;padding:0 6px;color:var(--muted)}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+.note{margin-top:8px;font-size:13px}
+.note ul{margin:2px 0 0;padding-left:1.2em}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:1px 6px;border-radius:3px;margin-right:6px;white-space:nowrap}
+.tag.redt{background:var(--hostile-fill);color:var(--hostile)}
+.tag.blindt{background:var(--unknown-fill);color:var(--unknown)}
+.tag.friendt{background:var(--friend-fill);color:var(--friend)}
+details.alt{margin-top:6px;font-size:12.5px;color:var(--muted)}
+details.alt summary{cursor:pointer}
+.composer{border:1.5px solid var(--accent);border-radius:8px;padding:12px;background:var(--panel);display:grid;gap:8px}
+.composer-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.composer-h b{font-family:var(--display);font-size:15px}
+.manual{display:grid;gap:8px;border-top:1px dashed var(--rule);padding-top:8px}
+.rangebox{display:flex;align-items:center;gap:10px}
+.rangebox output{font-family:var(--mono);font-weight:600;min-width:3.2em}
+.blank{color:var(--muted);font-size:13px;padding:10px 4px}
+
+/* scenarios */
+.axes{display:grid;gap:8px;margin-bottom:10px}
+.axis .ends{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:2px}
+.axis .ends span{color:var(--faint);font-family:var(--mono);font-size:12px}
+.axis .aname{font-weight:600}
+.quad{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+@media (max-width:460px){.quad{grid-template-columns:minmax(0,1fr)}}
+.cell{border:1px dashed var(--rule);border-radius:6px;padding:6px 4px;display:grid;gap:1px;align-content:start;min-width:0}
+.cell.here{border:1.5px solid var(--accent);background:var(--accent-soft)}
+.coord{font-family:var(--mono);font-size:10.5px;color:var(--muted);padding:0 6px;line-height:1.4}
+.wname{font-weight:700;font-family:var(--display)}
+.cell .lbl{padding:2px 6px 0;font-size:11.5px}
+.cell textarea{font-size:12.5px}
+.cell .btn{justify-self:start;margin:4px 0 0 4px}
+
+/* assumptions */
+.asm{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:2px 4px;align-items:start;padding:6px 0;border-top:1px solid var(--rule)}
+.asm:first-child{border-top:0}
+.kind{font-size:11.5px;padding:1px 7px;border-radius:4px;border:1px solid var(--rule);background:none;cursor:pointer;margin-top:4px;white-space:nowrap}
+.asm.fact .kind{color:var(--ink)}
+.asm.assume .kind{color:var(--accent);border-color:var(--accent)}
+.asm.assume textarea.atext{color:var(--accent)}
+.asm .ifw{grid-column:2 / -1;font-size:12.5px;color:var(--muted)}
+.conf{display:flex;align-items:center;font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:2px}
+.conf input{width:3.4em;text-align:right;font-family:var(--mono);padding:2px 2px}
+
+/* review */
+.rv{margin-top:10px;font-size:13px}
+.rv h4{font-size:12px;color:var(--muted);margin:12px 0 2px;font-weight:600;letter-spacing:.04em}
+.rv ul{margin:0;padding-left:1.2em}
+.rv li{margin:2px 0}
+.bet{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:4px 0}
+.lesson{font-family:var(--display);font-weight:600;font-size:15px;margin-top:4px}
+.lbl2{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px}
+
+/* empty states */
+.empty{display:grid;justify-items:start;gap:10px;padding:28px 24px;max-width:640px}
+.empty h2{font-family:var(--display);font-weight:900;font-size:22px;margin:0}
+.empty p{color:var(--muted)}
+.empty-table{display:block}
+.art{display:flex;gap:18px;align-items:center;padding:8px 0}
+
+/* training */
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,370px);gap:16px;align-items:start}
+@media (max-width:920px){.two{grid-template-columns:minmax(0,1fr)}}
+.case h3{font-family:var(--display);font-weight:900;font-size:clamp(19px,2.2vw,24px);margin:4px 0 2px;line-height:1.35}
+.case .meta{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:12px}
+.setup p{margin:0 0 .8em;max-width:68ch}
+.decision{background:var(--accent-soft);border-radius:6px;padding:10px 12px;margin:6px 0 14px;font-family:var(--display);font-weight:600;font-size:16px;line-height:1.5}
+.decision .lbl{display:block;font-family:var(--body);font-weight:400;color:var(--accent)}
+.form{display:grid;gap:8px}
+.reveal{border-top:1px solid var(--rule);margin-top:14px;padding-top:12px;display:grid;gap:10px}
+.reveal h4{font-size:12px;color:var(--muted);margin:0;font-weight:600;letter-spacing:.04em}
+.mine{background:var(--table);border-radius:6px;padding:8px 10px;font-size:13px}
+.verdict{font-family:var(--display);font-weight:700;font-size:16px}
+.coach ul{margin:2px 0 0;padding-left:1.2em}
+.insight{font-family:var(--display);font-weight:600;font-size:15px;padding:8px 12px;border-radius:6px;background:var(--unknown-fill);color:var(--ink)}
+.lc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 10px;padding:7px 0;border-top:1px solid var(--rule)}
+.lc:first-of-type{border-top:0}
+.lc b{font-size:13px}
+.lq{font-size:12px;color:var(--muted)}
+.lstat{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;text-align:right}
+.lstat .miss{color:var(--bad)}
+.hist{display:grid;gap:2px}
+.hist button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;text-align:left;border:0;background:none;padding:6px 4px;border-radius:4px;cursor:pointer;align-items:baseline}
+.hist button:hover{background:var(--table)}
+.hist button[aria-current="true"]{background:var(--accent-soft)}
+.hist .d{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.hist .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ledger */
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.stat .n{font-family:var(--mono);font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
+.jitem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-top:1px solid var(--rule);align-items:start}
+.jitem:first-child{border-top:0}
+.jp{font-family:var(--mono);font-weight:600;font-size:18px;min-width:3em;font-variant-numeric:tabular-nums}
+.jt{font-weight:600}
+.jbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.flag{font-family:var(--mono);font-size:11px;background:var(--unknown-fill);color:var(--unknown);border-radius:3px;padding:0 6px}
+.outc{font-family:var(--mono);font-size:11.5px;border-radius:3px;padding:0 6px;white-space:nowrap}
+.outc.yes{background:var(--neutral-fill);color:var(--good)}
+.outc.no{background:var(--hostile-fill);color:var(--bad)}
+.outc.void{background:var(--table);color:var(--muted)}
+.jform{display:grid;gap:8px}
+.jform .row > label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.chart{width:100%;max-width:360px;height:auto;display:block;margin:6px 0}
+.chart .ax{fill:var(--muted);font-family:var(--mono);font-size:10.5px}
+.chart .gl{stroke:var(--rule);stroke-width:1}
+.chart .diag{stroke:var(--faint);stroke-width:1.2;stroke-dasharray:4 4}
+.chart .pt{fill:var(--accent);fill-opacity:.85;stroke:var(--panel);stroke-width:1.5}
+.chart .ptl{fill:var(--ink);font-family:var(--mono);font-size:10px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--panel);padding:9px 16px;border-radius:6px;font-size:13px;max-width:calc(100% - 32px);z-index:20;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+@media (prefers-reduced-motion: reduce){.pulse{animation:none}}
+</style>
+
+<div class="app" id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="bridge.js"></script>
+<script>
+"use strict";
+/* ---------- small helpers ---------- */
+const app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = (p='') => p + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
+const clone = o => JSON.parse(JSON.stringify(o));
+const str = v => (v == null ? '' : String(v).trim());
+const arr = v => Array.isArray(v) ? v : [];
+const clampInt = (v,lo,hi,def) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
+const pad = n => String(n).padStart(2,'0');
+const isoOf = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const todayISO = () => isoOf(new Date());
+const plusDays = n => { const d = new Date(); d.setDate(d.getDate()+n); return isoOf(d); };
+const fmtDate = ts => { const d = new Date(ts||Date.now()); return (d.getMonth()+1)+'月'+d.getDate()+'日'; };
+const fid = bind => 'f-' + bind.replace(/[^a-zA-Z0-9_-]/g,'-');
+const d100 = () => { try { return (crypto.getRandomValues(new Uint32Array(1))[0] % 100) + 1; } catch(e){ return Math.floor(Math.random()*100)+1; } };
+const paras = s => str(s).split(/\n+/).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join('');
+const reduceMotion = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){ return false; } })();
+
+/* ---------- domain vocabulary ---------- */
+const SIDES = {
+  self:{label:'我',color:'friend'}, friend:{label:'友方',color:'friend'},
+  hostile:{label:'对手',color:'hostile'}, neutral:{label:'中立',color:'neutral'},
+  unknown:{label:'未知 / 环境',color:'unknown'}
+};
+const SIDE_ORDER = ['self','friend','hostile','neutral','unknown'];
+function sym(side, size=22){
+  const c = (SIDES[side]||SIDES.unknown).color;
+  const fill = side==='self' ? `var(--${c})` : `var(--${c}-fill)`;
+  let shape;
+  if (side==='self' || side==='friend') shape = '<rect x="2" y="6" width="20" height="12"/>';
+  else if (side==='hostile') shape = '<path d="M12 2 22 12 12 22 2 12Z"/>';
+  else if (side==='neutral') shape = '<rect x="4" y="4" width="16" height="16"/>';
+  else shape = '<path d="M7.5 7.5A4.5 4.5 0 0 1 16.5 7.5A4.5 4.5 0 0 1 16.5 16.5A4.5 4.5 0 0 1 7.5 16.5A4.5 4.5 0 0 1 7.5 7.5Z"/>';
+  return `<svg class="sym" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" style="fill:${fill};stroke:var(--${c});stroke-width:1.7">${shape}</svg>`;
+}
+const MARK = '<svg class="mark" width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><rect x="1.5" y="1.5" width="31" height="21" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M1.5 1.5 32.5 22.5M32.5 1.5 1.5 22.5" stroke="currentColor" stroke-width="2.2"/></svg>';
+const LENSES = [
+  ['对手视角','对方想要什么？他会怎样回应我的行动？'],
+  ['二阶效应','然后呢？这一步之后还会引发什么？'],
+  ['基础比率','类似的事，通常有多大比例能成？'],
+  ['可逆性','这个决定能撤回吗？错了要付多大代价？'],
+  ['不对称','有没有输小赢大的下注？'],
+  ['时间窗口','为什么是现在？窗口什么时候关？'],
+  ['资源约束','真正卡住我的稀缺资源是什么？'],
+  ['激励结构','各方的激励会把他们推向哪里？'],
+  ['信息差','我知道什么别人不知道？反过来呢？'],
+  ['选择权','这一步给未来留下更多选项，还是更少？'],
+  ['聚焦','我放弃了什么？是不是在太多战线上分兵？'],
+  ['最坏情况','最坏会怎样？我扛得住吗？']
+];
+const LENS_NAMES = LENSES.map(l => l[0]);
+const normLens = s => { const t = str(s); return LENS_NAMES.find(n => t === n || t.includes(n) || n.includes(t) && t) || t; };
+const DOMAINS = {business:'商业竞争', state:'国家与历史', creator:'创作者与职业', random:'随机'};
+const DOMAIN_DESC = {
+  business:'商业竞争：企业之间的竞争、定价、进入或退出市场、并购、平台之争等',
+  state:'国家与历史：外交、战争、改革、谈判，古今中外均可',
+  creator:'创作者与职业：作家、导演、编剧、游戏开发者、音乐人、内容创作者在职业关键节点上的选择'
+};
+const PH = {
+  self:{goal:'我真正想要的是什么？',resources:'我手上有什么牌？',limits:'我不能做、不愿做的事',style:'压力下我倾向怎么做？'},
+  other:{goal:'他想要什么？',resources:'他手上有什么牌？',limits:'他的约束和红线',style:'他通常怎么出牌？'}
+};
+
+/* ---------- state ---------- */
+const S = {
+  tab: ({'#drill':'drill','#ledger':'ledger'})[location.hash] || 'board',
+  boardId: null, drillId: null, domain: 'business',
+  draft: {action:'',intent:'',why:'',lenses:[]},
+  manual: {on:false, others:'', p:50, succ:'', fail:''},
+  jd: {text:'', p:60, due:plusDays(90), basis:'', source:''},
+  busy: null, ai: 'pending', aiNote: '', confirm: null, fresh: null
+};
+try { const s = JSON.parse(localStorage.getItem('zl-ui') || '{}'); if (s.boardId) S.boardId = s.boardId; if (s.domain) S.domain = s.domain; if (s.draft) S.draft = Object.assign(S.draft, s.draft); } catch(e){}
+let uiTimer;
+function saveUI(){ clearTimeout(uiTimer); uiTimer = setTimeout(() => { try { localStorage.setItem('zl-ui', JSON.stringify({boardId:S.boardId, domain:S.domain, draft:S.draft})); } catch(e){} }, 400); }
+
+/* ---------- storage: cloud (db) with a browser fallback ---------- */
+const KINDS = ['boards','judgments','drills'];
+const Store = { mode:'pending', note:'', root:null, data:{boards:new Map(), judgments:new Map(), drills:new Map()}, timers:{}, chains:{}, pend:{}, dirty:new Set(), unsub:[] };
+const LS_KEY = 'zl-tuiyan-v1';
+function loadLocal(){
+  try { const o = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); for (const k of KINDS) for (const it of arr(o[k])) if (it && it.id && !Store.data[k].has(it.id)) Store.data[k].set(it.id, it); } catch(e){}
+}
+let lsTimer;
+function persistLocal(){
+  clearTimeout(lsTimer);
+  lsTimer = setTimeout(() => { try { const o = {}; for (const k of KINDS) o[k] = [...Store.data[k].values()]; localStorage.setItem(LS_KEY, JSON.stringify(o)); } catch(e){} }, 300);
+}
+function useLocal(note){
+  for (const u of Store.unsub) { try { u(); } catch(e){} }
+  Store.unsub = []; Store.mode = 'local'; Store.note = note || '这里连接不到你的账号存储，数据只保存在这个浏览器里。';
+  loadLocal(); persistLocal(); onData();
+}
+async function initStore(){
+  const c = window.claude;
+  if (!c || typeof c.use !== 'function') { useLocal(); return; }
+  let db = null, user = null;
+  try { [db, user] = await Promise.all([c.use('db'), c.use('user')]); } catch(e){}
+  if (!db) { useLocal(); return; }
+  let base = null;
+  try {
+    if (user && await user.isOwner()) base = 'ws';
+    else if (user) { const id = await user.id(); if (id) base = 'data/users/' + id; }
+  } catch(e){}
+  if (!base) { useLocal(); return; }
+  try { Store.root = db.doc(base + '/main'); } catch(e){ useLocal(); return; }
+  Store.mode = 'cloud';
+  for (const k of KINDS) {
+    const un = Store.root.collection(k).onSnapshot(snap => {
+      const m = Store.data[k]; const seen = new Set(); let changed = false;
+      for (const d of snap.docs) {
+        seen.add(d.id);
+        if (Store.dirty.has(k+'/'+d.id)) continue;
+        const v = d.data(); if (!v) continue;
+        const next = Object.assign(clone(v), {id:d.id});
+        const cur = m.get(d.id);
+        if (!cur || JSON.stringify(cur) !== JSON.stringify(next)) { m.set(d.id, next); changed = true; }
+      }
+      for (const id of [...m.keys()]) if (!seen.has(id) && !Store.dirty.has(k+'/'+id)) { m.delete(id); changed = true; }
+      if (changed || !Store.loaded) { Store.loaded = true; onData(); }
+    }, err => {
+      if (err && (err.code === 'revoked' || err.code === 'unavailable' || err.code === 'not_granted')) useLocal('与账号存储的连接中断了，之后的修改先保存在这个浏览器里。');
+    });
+    Store.unsub.push(un);
+  }
+  render();
+}
+function touch(kind, id, delay=700){
+  if (Store.mode !== 'cloud') { persistLocal(); return; }
+  const key = kind+'/'+id; Store.dirty.add(key);
+  clearTimeout(Store.timers[key]);
+  Store.timers[key] = setTimeout(() => flush(kind, id), delay);
+}
+async function writeWithRetry(fn){
+  try { return await fn(); }
+  catch(e){ if (e && e.code === 'unavailable') { await new Promise(r => setTimeout(r, 800 + Math.random()*1200)); return await fn(); } throw e; }
+}
+function flush(kind, id){
+  const key = kind+'/'+id; delete Store.timers[key];
+  if (Store.mode !== 'cloud') { persistLocal(); Store.dirty.delete(key); return; }
+  const item = Store.data[kind].get(id);
+  const body = item ? clone(item) : null;
+  const ref = Store.root.collection(kind).doc(id);
+  Store.pend[key] = (Store.pend[key]||0) + 1;
+  const p = (Store.chains[key] || Promise.resolve()).then(() => writeWithRetry(() => body ? ref.set(body) : ref.delete()));
+  Store.chains[key] = p.catch(() => {});
+  p.catch(e => {
+    const code = e && e.code;
+    if (code === 'invalid_argument' || code === 'not_granted' || code === 'revoked') useLocal('这个账号不能写入云端存储，修改改为保存在这个浏览器里。');
+    else if (code === 'quota_exceeded') toast('存储满了：删掉一些旧的练习或局面后再试。');
+    else toast('保存没有成功，下次修改时会再试。');
+  }).finally(() => {
+    Store.pend[key]--;
+    if (!Store.pend[key] && !Store.timers[key]) Store.dirty.delete(key);
+  });
+}
+function removeItem(kind, id){ Store.data[kind].delete(id); touch(kind, id, 0); }
+
+/* ---------- AI (sample) ---------- */
+let sampleFn = null, aiReadyResolve;
+const aiReady = new Promise(r => aiReadyResolve = r);
+async function initAI(){
+  try { const c = window.claude; if (c && typeof c.use === 'function') sampleFn = await c.use('sample'); } catch(e){ sampleFn = null; }
+  S.ai = sampleFn ? 'on' : 'off';
+  if (!sampleFn) S.aiNote = '还没连接 AI。回到战略推演主站，在右上角设置里填好 Key 后刷新这页。';
+  aiReadyResolve(); render();
+}
+const AI_OFF = new Set(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed']);
+async function askJSON(prompt, kind, tier='default'){
+  if (S.busy) throw {code:'busy'};
+  S.busy = {kind, ctl:new AbortController()};
+  doRender();
+  try {
+    await aiReady;
+    if (!sampleFn) throw {code:'not_granted'};
+    return await sampleFn.json(prompt, {signal:S.busy.ctl.signal, modelTier:tier, cache:false});
+  } finally { S.busy = null; }
+}
+function handleAIError(e){
+  const code = e && e.code;
+  if (code === 'cancelled') return;
+  if (code === 'busy') { toast('上一个请求还没结束。'); return; }
+  if (AI_OFF.has(code)) {
+    S.ai = 'off';
+    S.aiNote = code === 'not_granted' ? '你没有允许这个页面调用 Claude，已切换到手动裁决。' : '这里暂时用不了 Claude，已切换到手动裁决。';
+    toast(S.aiNote); return;
+  }
+  toast(({
+    rate_limited:'请求太频繁，或这段时间的额度用完了。稍后再试。',
+    session_expired:'Claude 登录已过期，重新登录后再试。',
+    invalid_json:'AI 的回复格式不对，再试一次。',
+    refused:'Claude 没有回答这个请求，换个说法试试。',
+    empty_completion:'AI 没有给出内容，精简一下再试。',
+    prompt_too_large:'局面写得太长了，删掉一些回合或文字后再试。'
+  })[code] || '连接出了问题，再试一次。');
+}
+
+/* ---------- board model ---------- */
+const emptyWorld = () => ({name:'', story:'', move:'', signals:''});
+function blankBoard(){
+  const now = Date.now();
+  return {
+    id: uid('b'), title:'新局面', question:'', horizon:'12 个月', turnUnit:'一个季度',
+    actors:[
+      {id:uid('a'), name:'我', side:'self', goal:'', resources:'', limits:'', style:''},
+      {id:uid('a'), name:'', side:'hostile', goal:'', resources:'', limits:'', style:''},
+      {id:uid('a'), name:'', side:'unknown', goal:'', resources:'', limits:'', style:''}
+    ],
+    vars:[{id:uid('v'), name:'', base:3}, {id:uid('v'), name:'', base:3}],
+    axes:{x:{name:'',lo:'',hi:''}, y:{name:'',lo:'',hi:''}},
+    worlds:{x0y0:emptyWorld(), x1y0:emptyWorld(), x0y1:emptyWorld(), x1y1:emptyWorld()}, world:'',
+    assumptions:[{id:uid('s'), kind:'assume', text:'', conf:50, ifWrong:''}],
+    rounds:[], head:null, review:null, notes:'', createdAt:now, updatedAt:now
+  };
+}
+function normBoard(b){
+  b.actors = arr(b.actors); b.vars = arr(b.vars); b.assumptions = arr(b.assumptions); b.rounds = arr(b.rounds);
+  b.axes = b.axes || {}; b.axes.x = b.axes.x || {name:'',lo:'',hi:''}; b.axes.y = b.axes.y || {name:'',lo:'',hi:''};
+  b.worlds = b.worlds || {}; for (const k of ['x0y0','x1y0','x0y1','x1y1']) b.worlds[k] = Object.assign(emptyWorld(), b.worlds[k]||{});
+  if (b.head && !b.rounds.some(r => r.id === b.head)) b.head = null;
+  return b;
+}
+function boardsSorted(){ return [...Store.data.boards.values()].sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0)); }
+function curBoard(){
+  let b = S.boardId && Store.data.boards.get(S.boardId);
+  if (!b) { b = boardsSorted()[0]; if (b) S.boardId = b.id; }
+  return b ? normBoard(b) : null;
+}
+function changed(b, delay){ b.updatedAt = Date.now(); touch('boards', b.id, delay); }
+function pathTo(b, id){
+  const m = new Map(b.rounds.map(r => [r.id, r])); const out = []; let cur = id ? m.get(id) : null; let g = 0;
+  while (cur && g++ < 999) { out.push(cur); cur = cur.parent ? m.get(cur.parent) : null; }
+  return out.reverse();
+}
+function leaves(b){ const ps = new Set(b.rounds.map(r => r.parent).filter(Boolean)); return b.rounds.filter(r => !ps.has(r.id)).sort((a,c) => a.ts - c.ts); }
+function curVar(b, v, path){ let x = Number(v.base) || 3; for (const r of path) for (const d of arr(r.varDelta)) if (d.id === v.id) x += Number(d.d)||0; return Math.max(1, Math.min(5, x)); }
+function sideOf(b, name){
+  const n = str(name); if (!n) return 'unknown';
+  const a = b.actors.find(a => a.name && (a.name === n || n.includes(a.name) || a.name.includes(n)));
+  return a ? a.side : 'unknown';
+}
+function mapVars(b, list){
+  const out = [];
+  for (const it of arr(list)) {
+    const n = str(it && it.name); const d = clampInt(it && it.d, -1, 1, 0); if (!n || !d) continue;
+    const v = b.vars.find(v => v.name && (v.name === n || n.includes(v.name) || v.name.includes(n)));
+    if (v && !out.some(o => o.id === v.id)) out.push({id:v.id, name:v.name, d});
+  }
+  return out;
+}
+
+/* ---------- prompts ---------- */
+function boardBrief(b, path, withRounds=true){
+  const L = [];
+  L.push(`【战略问题】${b.question || '（未写）'}`);
+  L.push(`【时间跨度】${b.horizon || '未定'}；每回合代表${b.turnUnit || '一段时间'}；今天是 ${todayISO()}`);
+  L.push('【行动者】');
+  for (const a of b.actors) { if (!a.name && a.side !== 'self') continue; L.push(`- ${a.name || '我'}（${SIDES[a.side].label}）｜目标：${a.goal||'未写'}｜资源：${a.resources||'未写'}｜约束与红线：${a.limits||'未写'}｜风格：${a.style||'未写'}`); }
+  const vs = b.vars.filter(v => v.name);
+  if (vs.length) L.push('【关键变量（1 很低 – 5 很高，当前值）】' + vs.map(v => `${v.name}=${curVar(b, v, path)}`).join('；'));
+  const as = b.assumptions.filter(a => a.text);
+  if (as.length) { L.push('【假设登记簿】'); for (const a of as) L.push(`- ${a.kind === 'fact' ? '事实' : '假设（置信 '+(a.conf ?? 50)+'%）'}：${a.text}${a.ifWrong ? '｜若错：'+a.ifWrong : ''}`); }
+  const ax = b.axes;
+  if (ax.x.name && ax.y.name) L.push(`【情景轴】X：${ax.x.name}（${ax.x.lo||'低'} ↔ ${ax.x.hi||'高'}）；Y：${ax.y.name}（${ax.y.lo||'低'} ↔ ${ax.y.hi||'高'}）`);
+  const w = b.world && b.worlds[b.world];
+  if (w && (w.name || w.story)) L.push(`【玩家判断现实更接近的情景】${w.name}：${w.story}${w.move ? '｜玩家在这个世界的打法：'+w.move : ''}`);
+  if (withRounds && path.length) {
+    L.push('【已发生的回合】');
+    path.forEach((r, i) => L.push(`第${i+1}回合：我做了「${r.my.action}」（意图：${r.my.intent||'未写'}）→ 骰子结果：${r.judge.success ? '达成' : '受挫'}。${r.judge.outcome}${arr(r.others).length ? ' 其他各方：' + r.others.map(o => `${o.actor}：${o.action}`).join('；') : ''}`));
+  }
+  let s = L.join('\n');
+  if (s.length > 16000) s = s.slice(0, 4000) + '\n…（中间省略）…\n' + s.slice(-11000);
+  return s;
+}
+function roundPrompt(b, path, d){
+  return `你在主持一场「个人战略兵棋推演」，同时担任控制组（扮演除「我」以外的各方）和裁判。玩家是「我」。
+
+规则：
+1. 逐一扮演除「我」以外的每个行动者，按各自的目标、资源、约束和风格独立行动。他们看不到「我」的内心计划，只能看到「我」公开做的事。不要迎合玩家：该冷淡就冷淡，该竞争就竞争。环境力量（平台、技术、市场、时间）也会"行动"。
+2. 作为裁判，估计「我」这一步在本回合达成意图的概率（1 到 99 的整数）。先想同类事情的基础比率，再按局面调整，警惕乐观偏差。
+3. 分别写出「达成」和「受挫」两种情况下的局面变化，之后由 D100 骰子决定走哪一支。两种都要具体、可信。
+4. 作为红队，对这一步提出 1 到 3 条尖锐而具体的质疑。
+5. 指出一个玩家可能没看到的盲点，并标明它对应的思维透镜（从这里选：${LENS_NAMES.join('、')}）。
+6. 关键变量只在确有理由时变化，每个变量每回合最多加减 1，变量名必须照抄关键变量列表。
+
+${boardBrief(b, path)}
+
+现在是第 ${path.length + 1} 回合（每回合代表${b.turnUnit || '一段时间'}）。
+「我」的行动：${d.action}
+想达成：${d.intent || '（未写）'}
+理由：${d.why || '（未写）'}
+推进前我检查过的透镜：${d.lenses.length ? d.lenses.join('、') : '（没有勾选）'}
+
+只回复一个 JSON 对象，不要任何其他文字。结构：
+{"others":[{"actor":"<行动者名称，照抄上面>","action":"<本回合该方做了什么，1-2句>","why":"<站在该方立场的理由，1句>"}],"p":<1-99 的整数>,"pWhy":"<概率依据，1-2句，提到基础比率>","ifSuccess":{"outcome":"<达成时的局面变化，2-3句>","vars":[{"name":"<关键变量名>","d":<1 或 -1>}]},"ifFail":{"outcome":"<受挫时的局面变化，2-3句>","vars":[{"name":"<关键变量名>","d":<1 或 -1>}]},"red":["<质疑>"],"blind":{"lens":"<透镜名>","text":"<盲点说明，1-2句>"}}`;
+}
+function worldsPrompt(b){
+  const ax = b.axes;
+  return `你在帮一个人做情景规划。根据下面的局面和两条不确定性轴，描绘四个可能的世界。每个世界要具体、可信、彼此差别明显；预警信号必须是现实中能观察到的具体迹象。不要替玩家写打法，那是玩家自己的功课。
+
+${boardBrief(b, [], false)}
+
+横轴 X：${ax.x.name}（低端：${ax.x.lo || '低'}；高端：${ax.x.hi || '高'}）
+纵轴 Y：${ax.y.name}（低端：${ax.y.lo || '低'}；高端：${ax.y.hi || '高'}）
+
+只回复一个 JSON 对象，键 x0 表示 X 低端、x1 表示 X 高端、y0 表示 Y 低端、y1 表示 Y 高端：
+{"x0y0":{"name":"<4-8 字的世界名>","story":"<这个世界的样子，2-3句>","signals":"<2-3 个预警信号，用；分隔>"},"x1y0":{...},"x0y1":{...},"x1y1":{...}}`;
+}
+function reviewPrompt(b, path){
+  return `你是战略复盘官。下面是一次个人战略推演的局面和当前路线的全部回合。请冷静复盘，帮玩家把推演变成现实中的行动和可以验证的判断。
+
+${boardBrief(b, path)}
+
+玩家的复盘笔记：${b.notes || '（无）'}
+今天是 ${todayISO()}。
+
+只回复一个 JSON 对象：
+{"summary":"<这条路线讲了一个什么故事，2-3句>","loadBearing":[{"assumption":"<撑起整个结论的关键假设>","risk":"<如果它错了会怎样>"}],"signals":["<未来 3-6 个月现实中要盯的具体信号>"],"bets":[{"text":"<一条到期时能分清真假的陈述句>","p":<0-100 的整数>,"due":"<YYYY-MM-DD，晚于今天>"}],"next":["<现实中下一步可做的、可撤回的小动作>"],"lesson":"<一条可迁移的战略原则>","red":"<红队对整体计划最致命的一条批评>"}
+loadBearing 最多 3 条，signals 最多 4 条，bets 2-3 条，next 最多 3 条。`;
+}
+function drillPrompt(dom, avoid){
+  return `你是战略思维教练，请出一道「战略决策练习题」。
+领域：${DOMAIN_DESC[dom]}。
+要求：
+1. 用一个真实、有据可查的案例，不要虚构。挑知名度中等的，避开人尽皆知结局的案例。
+2. 题干只写到关键决策点之前，绝不透露结局，也不带后见之明。标题也不能剧透。
+3. 写清决策者当时掌握的信息、资源、约束、对手和主要不确定性，让人有足够材料推理。
+4. 题干 250-400 字，中文，分 2-4 段。
+${avoid.length ? '5. 不要用这些练过的案例：' + avoid.join('、') : ''}
+只回复一个 JSON 对象：
+{"title":"<不剧透的标题>","when":"<时间与地点>","who":"<决策者>","setup":"<背景与局面，段落之间用 \\n 分隔>","question":"<决策点：一句话问「你会怎么做」>","outcome":"<历史上实际发生了什么，以及后果，150-250 字>","lesson":"<这个案例最核心的一条战略洞察，一句话>","uncertain":"<你对哪些细节没有把握；没有就写空字符串>"}`;
+}
+function coachPrompt(d){
+  const c = d.case; const b = curBoard();
+  return `你是严格但有建设性的战略思维教练。请评估学员这次练习的推理质量。评价的是推理过程，不是有没有猜中结局：好的推理也可能遇上坏运气，反之亦然。
+
+【练习题】${c.title}（${c.when}；决策者：${c.who}）
+${c.setup}
+决策点：${c.question}
+
+【历史上实际发生的】${c.outcome}
+【案例要点】${c.lesson}
+
+【学员的决策】${d.answer}
+【学员的理由】${d.why || '（未写）'}
+【学员自认用到的透镜】${arr(d.lenses).length ? d.lenses.join('、') : '（没有勾选）'}
+【学员对自己决策会奏效的信心】${d.conf}%
+
+透镜清单（missed 里的 lens 必须用清单原名）：${LENS_NAMES.join('、')}
+学员自己正在思考的战略问题：${b && b.question ? b.question : '（未提供，请迁移到一般的个人事业决策）'}
+
+只回复一个 JSON 对象：
+{"verdict":"<一句话总评>","strong":["<推理中做得好的地方>"],"missed":[{"lens":"<透镜名>","why":"<在本案中它为什么关键，1-2句>"}],"calibration":"<这个信心水平是否合理，1-2句>","insight":"<一条值得带走的原则>","transfer":"<把这条原则用到学员自己问题上的具体建议，2-3句>"}
+strong 最多 3 条，missed 最多 3 条。`;
+}
+
+/* ---------- actions ---------- */
+async function advance(){
+  const b = curBoard(); if (!b) return;
+  const d = S.draft;
+  if (!d.action.trim()) { toast('先写下这一回合你打算做什么。'); focusId(fid('draft:action')); return; }
+  const bid = b.id; const path = pathTo(b, b.head);
+  let res;
+  try { res = await askJSON(roundPrompt(b, path, d), 'round'); }
+  catch(e){ handleAIError(e); doRender(); return; }
+  const b2 = Store.data.boards.get(bid); if (!b2) { doRender(); return; }
+  normBoard(b2);
+  if (!res || typeof res !== 'object') { toast('AI 的回复格式不对，再试一次。'); doRender(); return; }
+  const p = clampInt(res.p, 1, 99, 50); const roll = d100(); const success = roll <= p;
+  const br = (success ? res.ifSuccess : res.ifFail) || {}; const alt = (success ? res.ifFail : res.ifSuccess) || {};
+  const r = {
+    id: uid('r'), parent: b2.head || null, ts: Date.now(), mode:'ai',
+    my: {action:d.action.trim(), intent:d.intent.trim(), why:d.why.trim(), lenses:[...d.lenses]},
+    others: arr(res.others).slice(0, 8).map(o => ({actor:str(o && o.actor), action:str(o && o.action), why:str(o && o.why)})).filter(o => o.action),
+    judge: {p, pWhy:str(res.pWhy), roll, success, outcome:str(br.outcome) || (success ? '达成' : '受挫'), alt:str(alt.outcome)},
+    varDelta: mapVars(b2, br.vars),
+    red: arr(res.red).map(str).filter(Boolean).slice(0, 3),
+    blind: res.blind && str(res.blind.text) ? {lens:normLens(res.blind.lens), text:str(res.blind.text)} : null
+  };
+  b2.rounds.push(r); b2.head = r.id; changed(b2, 0);
+  S.draft = {action:'', intent:'', why:'', lenses:[]}; saveUI();
+  S.fresh = r.id; doRender();
+}
+function advanceManual(){
+  const b = curBoard(); if (!b) return;
+  const d = S.draft, m = S.manual;
+  if (!d.action.trim()) { toast('先写下这一回合你打算做什么。'); focusId(fid('draft:action')); return; }
+  const p = clampInt(m.p, 1, 99, 50); const roll = d100(); const success = roll <= p;
+  const r = {
+    id: uid('r'), parent: b.head || null, ts: Date.now(), mode:'manual',
+    my: {action:d.action.trim(), intent:d.intent.trim(), why:d.why.trim(), lenses:[...d.lenses]},
+    others: m.others.trim() ? [{actor:'各方', action:m.others.trim(), why:''}] : [],
+    judge: {p, pWhy:'手动裁决', roll, success, outcome:(success ? m.succ : m.fail).trim() || (success ? '这一步达成了。' : '这一步受挫了。'), alt:(success ? m.fail : m.succ).trim()},
+    varDelta: [], red: [], blind: null
+  };
+  b.rounds.push(r); b.head = r.id; changed(b, 0);
+  S.draft = {action:'', intent:'', why:'', lenses:[]}; saveUI();
+  Object.assign(S.manual, {others:'', p:50, succ:'', fail:''});
+  S.fresh = r.id; doRender();
+}
+async function genWorlds(){
+  const b = curBoard(); if (!b) return;
+  if (!b.axes.x.name || !b.axes.y.name) { toast('先写下两条不确定性轴的名字。'); focusId(fid('board:axes.x.name')); return; }
+  const bid = b.id; let res;
+  try { res = await askJSON(worldsPrompt(b), 'worlds'); } catch(e){ handleAIError(e); doRender(); return; }
+  const b2 = Store.data.boards.get(bid); if (!b2 || !res) { doRender(); return; }
+  normBoard(b2); let n = 0;
+  for (const k of ['x0y0','x1y0','x0y1','x1y1']) {
+    const w = res[k]; if (!w) continue; const t = b2.worlds[k];
+    if (!t.name && str(w.name)) { t.name = str(w.name); n++; }
+    if (!t.story && str(w.story)) { t.story = str(w.story); n++; }
+    if (!t.signals && str(w.signals)) { t.signals = str(w.signals); n++; }
+  }
+  changed(b2, 0); doRender();
+  toast(n ? '已补全空白处。「我的打法」留给你写。' : '四个世界都已经写好了，没有覆盖你的内容。');
+}
+async function review(){
+  const b = curBoard(); if (!b) return;
+  const bid = b.id; const path = pathTo(b, b.head); let res;
+  try { res = await askJSON(reviewPrompt(b, path), 'review'); } catch(e){ handleAIError(e); doRender(); return; }
+  const b2 = Store.data.boards.get(bid); if (!b2 || !res) { doRender(); return; }
+  b2.review = {
+    ts: Date.now(), head: b2.head, summary: str(res.summary),
+    loadBearing: arr(res.loadBearing).map(x => ({assumption:str(x && x.assumption), risk:str(x && x.risk)})).filter(x => x.assumption).slice(0, 3),
+    signals: arr(res.signals).map(str).filter(Boolean).slice(0, 4),
+    bets: arr(res.bets).map(x => ({text:str(x && x.text), p:clampInt(x && x.p, 1, 99, 50), due:/^\d{4}-\d{2}-\d{2}$/.test(str(x && x.due)) ? str(x.due) : plusDays(90), added:false})).filter(x => x.text).slice(0, 3),
+    next: arr(res.next).map(str).filter(Boolean).slice(0, 3),
+    lesson: str(res.lesson), red: str(res.red)
+  };
+  changed(b2, 0); doRender();
+}
+async function newDrill(){
+  let dom = S.domain === 'random' ? ['business','state','creator'][Math.floor(Math.random()*3)] : S.domain;
+  const avoid = [...Store.data.drills.values()].sort((a,b) => b.ts - a.ts).slice(0, 20).map(d => d.case && d.case.title).filter(Boolean);
+  let res;
+  try { res = await askJSON(drillPrompt(dom, avoid), 'drill'); } catch(e){ handleAIError(e); doRender(); return; }
+  if (!res || !str(res.setup) || !str(res.question) || !str(res.outcome)) { toast('题目没有生成完整，再试一次。'); doRender(); return; }
+  const d = {
+    id: uid('d'), ts: Date.now(), domain: dom,
+    case: {title:str(res.title) || '无题', when:str(res.when), who:str(res.who), setup:str(res.setup), question:str(res.question), outcome:str(res.outcome), lesson:str(res.lesson), uncertain:str(res.uncertain)},
+    answer:'', why:'', lenses:[], conf:60, revealed:false, coach:null
+  };
+  Store.data.drills.set(d.id, d); touch('drills', d.id, 0); S.drillId = d.id; doRender();
+}
+async function coach(id){
+  const d0 = Store.data.drills.get(id); if (!d0) return;
+  let res;
+  try { res = await askJSON(coachPrompt(d0), 'coach'); } catch(e){ handleAIError(e); doRender(); return; }
+  const d = Store.data.drills.get(id); if (!d || !res) { doRender(); return; }
+  d.coach = {
+    verdict: str(res.verdict), strong: arr(res.strong).map(str).filter(Boolean).slice(0, 3),
+    missed: arr(res.missed).map(m => ({lens:normLens(m && m.lens), why:str(m && m.why)})).filter(m => m.why).slice(0, 3),
+    calibration: str(res.calibration), insight: str(res.insight), transfer: str(res.transfer)
+  };
+  touch('drills', id, 0); doRender();
+}
+
+const ACT = {
+  tab(t){ S.tab = t.dataset.tab; S.confirm = null; doRender(); window.scrollTo(0, 0); },
+  stop(){ if (S.busy && S.busy.ctl) S.busy.ctl.abort(); },
+  pickBoard(t){ S.boardId = t.value; S.confirm = null; saveUI(); doRender(); },
+  newBoard(){ const b = blankBoard(); Store.data.boards.set(b.id, b); touch('boards', b.id, 0); S.boardId = b.id; saveUI(); doRender(); focusId(fid('board:question')); },
+  askDelBoard(){ S.confirm = 'board'; doRender(); },
+  cancel(){ S.confirm = null; doRender(); },
+  delBoard(){ const b = curBoard(); if (b) removeItem('boards', b.id); S.boardId = null; S.confirm = null; saveUI(); doRender(); toast('局面已删除。'); },
+  cycleSide(t){ const b = curBoard(); const a = b.actors.find(a => a.id === t.dataset.id); if (!a) return; a.side = SIDE_ORDER[(SIDE_ORDER.indexOf(a.side) + 1) % SIDE_ORDER.length]; changed(b); doRender(); },
+  addActor(){ const b = curBoard(); b.actors.push({id:uid('a'), name:'', side:'hostile', goal:'', resources:'', limits:'', style:''}); changed(b); doRender(); focusId(fid('board:actors.' + b.actors[b.actors.length-1].id + '.name')); },
+  delActor(t){ const b = curBoard(); b.actors = b.actors.filter(a => a.id !== t.dataset.id); changed(b); doRender(); },
+  addVar(){ const b = curBoard(); const v = {id:uid('v'), name:'', base:3}; b.vars.push(v); changed(b); doRender(); focusId(fid('board:vars.' + v.id + '.name')); },
+  delVar(t){ const b = curBoard(); b.vars = b.vars.filter(v => v.id !== t.dataset.id); changed(b); doRender(); },
+  pip(t){ const b = curBoard(); const v = b.vars.find(v => v.id === t.dataset.id); if (!v) return; v.base = Number(t.dataset.n); changed(b); doRender(); },
+  addAsm(){ const b = curBoard(); const s = {id:uid('s'), kind:'assume', text:'', conf:50, ifWrong:''}; b.assumptions.push(s); changed(b); doRender(); focusId(fid('board:assumptions.' + s.id + '.text')); },
+  delAsm(t){ const b = curBoard(); b.assumptions = b.assumptions.filter(s => s.id !== t.dataset.id); changed(b); doRender(); },
+  toggleKind(t){ const b = curBoard(); const s = b.assumptions.find(s => s.id === t.dataset.id); if (!s) return; s.kind = s.kind === 'fact' ? 'assume' : 'fact'; changed(b); doRender(); },
+  setWorld(t){ const b = curBoard(); b.world = b.world === t.dataset.k ? '' : t.dataset.k; changed(b); doRender(); },
+  route(t){ const b = curBoard(); b.head = t.dataset.id || null; changed(b); doRender(); },
+  fork(t){ const b = curBoard(); b.head = t.dataset.id; changed(b); doRender(); focusId(fid('draft:action')); toast('已回到这一回合。下一步会开出一条新路线，原路线保留。'); },
+  undo(t){ const b = curBoard(); const r = b.rounds.find(r => r.id === t.dataset.id); if (!r) return; b.rounds = b.rounds.filter(x => x.id !== r.id); b.head = r.parent || null; changed(b); doRender(); },
+  draftLens(t){ const L = S.draft.lenses; const n = t.dataset.lens; const i = L.indexOf(n); i < 0 ? L.push(n) : L.splice(i, 1); saveUI(); doRender(); },
+  toggleManual(){ S.manual.on = !S.manual.on; doRender(); },
+  advance(){ advance(); },
+  advanceManual(){ advanceManual(); },
+  genWorlds(){ genWorlds(); },
+  review(){ review(); },
+  betToLedger(t){
+    const b = curBoard(); const bet = b.review && b.review.bets[Number(t.dataset.i)]; if (!bet) return;
+    S.jd = {text:bet.text, p:bet.p, due:bet.due, basis:'来自推演：' + (b.title || ''), source:b.id};
+    bet.added = true; changed(b); S.tab = 'ledger'; doRender(); window.scrollTo(0, 0); focusId(fid('jd:p'));
+    toast('已填进判断簿。参考概率是 AI 给的，改成你自己的判断再添加。');
+  },
+  domain(t){ S.domain = t.dataset.d; saveUI(); doRender(); },
+  newDrill(){ newDrill(); },
+  openDrill(t){ S.drillId = t.dataset.id; doRender(); window.scrollTo(0, 0); },
+  drillLens(t){ const d = Store.data.drills.get(S.drillId) || latestDrill(); if (!d || d.revealed) return; d.lenses = arr(d.lenses); const i = d.lenses.indexOf(t.dataset.lens); i < 0 ? d.lenses.push(t.dataset.lens) : d.lenses.splice(i, 1); touch('drills', d.id); doRender(); },
+  reveal(){
+    const d = Store.data.drills.get(S.drillId) || latestDrill(); if (!d) return;
+    if (!str(d.answer)) { toast('先写下你的决策，再看结局。'); focusId(fid('drill:answer')); return; }
+    d.revealed = true; d.revealedAt = Date.now(); touch('drills', d.id, 0); doRender();
+    if (S.ai !== 'off') coach(d.id);
+  },
+  coach(){ const d = Store.data.drills.get(S.drillId) || latestDrill(); if (d) coach(d.id); },
+  addJ(){
+    const t = S.jd.text.trim(); if (!t) { toast('先写下你的判断。'); focusId(fid('jd:text')); return; }
+    const j = {id:uid('j'), text:t, p:clampInt(S.jd.p, 1, 99, 60), due:S.jd.due || plusDays(90), basis:S.jd.basis.trim(), source:S.jd.source || '', status:'open', ts:Date.now()};
+    Store.data.judgments.set(j.id, j); touch('judgments', j.id, 0);
+    S.jd = {text:'', p:60, due:plusDays(90), basis:'', source:''}; doRender(); toast('已记下。到期那天回来结算。');
+  },
+  resolve(t){ const j = Store.data.judgments.get(t.dataset.id); if (!j) return; j.status = t.dataset.v; j.resolvedAt = Date.now(); touch('judgments', j.id, 0); doRender(); },
+  reopen(t){ const j = Store.data.judgments.get(t.dataset.id); if (!j) return; j.status = 'open'; delete j.resolvedAt; touch('judgments', j.id, 0); doRender(); },
+  askDelJ(t){ S.confirm = 'j:' + t.dataset.id; doRender(); },
+  delJ(t){ removeItem('judgments', t.dataset.id); S.confirm = null; doRender(); }
+};
+
+/* ---------- views ---------- */
+const inp = (bind, val, o={}) => `<input id="${fid(bind)}" data-bind="${bind}" value="${esc(val)}"${o.ph ? ` placeholder="${esc(o.ph)}"` : ''}${o.cls ? ` class="${o.cls}"` : ''}${o.type ? ` type="${o.type}"` : ''}${o.num ? ' data-type="num"' : ''}${o.extra || ''}${o.label ? ` aria-label="${esc(o.label)}"` : ''}>`;
+const ta = (bind, val, o={}) => `<textarea id="${fid(bind)}" data-bind="${bind}" rows="${o.rows || 1}" class="auto ${o.cls || ''}"${o.ph ? ` placeholder="${esc(o.ph)}"` : ''}${o.label ? ` aria-label="${esc(o.label)}"` : ''}>${esc(val)}</textarea>`;
+const tabBtn = (k, label) => `<button role="tab" aria-selected="${S.tab === k}" data-act="tab" data-tab="${k}">${label}</button>`;
+const busyLine = (msg) => `<div class="busy"><span class="pulse" aria-hidden="true"></span><span>${esc(msg)}</span><button class="btn sm ghost" data-act="stop">停止</button></div>`;
+const aiAvailable = () => S.ai !== 'off';
+
+function header(){
+  const openN = [...Store.data.judgments.values()].filter(j => j.status === 'open').length;
+  const store = Store.mode === 'cloud' ? '<span class="chip on" title="保存在你的 Claude 账号里，别人打开这个页面看不到"><span class="dot"></span>已同步 · 仅你可见</span>'
+    : Store.mode === 'local' ? `<span class="chip warn" title="${esc(Store.note)}"><span class="dot"></span>仅存在本浏览器</span>`
+    : '<span class="chip"><span class="dot"></span>正在连接</span>';
+  const ai = S.ai === 'on' ? '<span class="chip on" title="AI 扮演对手、裁判、红队和教练，用的是你自己的 Claude 额度"><span class="dot"></span>AI 陪练</span>'
+    : S.ai === 'off' ? `<span class="chip warn" title="${esc(S.aiNote)}"><span class="dot"></span>手动裁决</span>`
+    : '<span class="chip"><span class="dot"></span>AI 连接中</span>';
+  return `<header class="top">
+    <div class="brand">${MARK}<div><h1>个人战略推演台</h1><p class="tag-line">长期沙盘 · <a href="../" style="color:inherit">← 回到战略推演</a></p></div></div>
+    <nav class="tabs" role="tablist" aria-label="模块">${tabBtn('board','推演台')}${tabBtn('drill','训练场')}${tabBtn('ledger', '判断簿' + (openN ? ` <span class="cnt">${openN}</span>` : ''))}</nav>
+    <div class="status">${store}${ai}</div>
+  </header>`;
+}
+function emptyArt(){
+  return `<div class="art" aria-hidden="true">${sym('self',30)}${sym('hostile',30)}${sym('neutral',30)}${sym('unknown',30)}</div>`;
+}
+function boardView(){
+  if (Store.mode === 'pending') return `<div class="table empty-table"><div class="empty">${emptyArt()}<h2>正在打开你的推演台…</h2><p>你的局面、判断和练习记录保存在你自己的账号里，马上就好。</p></div></div>`;
+  const b = curBoard();
+  if (!b) return `<div class="table empty-table"><div class="empty">${emptyArt()}
+    <h2>还没有局面</h2>
+    <p>一个局面就是一个你真正要拿主意的战略问题：牵涉哪些人和力量，两条最关键的不确定性，以及你打算一回合一回合怎么走。推演的结果会变成判断簿里可以验证的预测。</p>
+    <button class="btn primary" data-act="newBoard">新建局面</button></div></div>`;
+  const path = pathTo(b, b.head);
+  const opts = boardsSorted().map(x => `<option value="${esc(x.id)}"${x.id === b.id ? ' selected' : ''}>${esc(x.title || '未命名局面')}</option>`).join('');
+  const del = S.confirm === 'board'
+    ? `<span class="confirm">删除这个局面和全部回合？<button class="btn sm danger" data-act="delBoard">删除</button><button class="btn sm ghost" data-act="cancel">取消</button></span>`
+    : `<button class="btn ghost" data-act="askDelBoard">删除</button>`;
+  return `
+  <div class="boardbar">
+    <select id="board-pick" data-act="pickBoard" aria-label="选择局面">${opts}</select>
+    ${inp('board:title', b.title, {cls:'title-in', ph:'局面名称', label:'局面名称'})}
+    <button class="btn" data-act="newBoard">新建局面</button>${del}
+  </div>
+  <div class="qwrap">
+    <label class="lbl" for="${fid('board:question')}" style="padding-left:6px">战略问题</label>
+    ${ta('board:question', b.question, {cls:'q', ph:'例如：接下来一年，我把时间押在哪条线上？'})}
+    <div class="qmeta">
+      <label>时间跨度 ${inp('board:horizon', b.horizon, {ph:'12 个月'})}</label>
+      <label>每回合代表 ${inp('board:turnUnit', b.turnUnit, {ph:'一个季度'})}</label>
+    </div>
+  </div>
+  <div class="table">
+    <div class="col col-a">${actorsPanel(b)}${varsPanel(b, path)}</div>
+    <div class="col col-b">${roundsPanel(b, path)}</div>
+    <div class="col col-c">${worldsPanel(b)}${asmPanel(b)}${reviewPanel(b, path)}</div>
+  </div>`;
+}
+function actorsPanel(b){
+  const cards = b.actors.map(a => {
+    const ph = a.side === 'self' ? PH.self : PH.other; const base = 'board:actors.' + a.id + '.';
+    return `<div class="unit">
+      <div class="unit-h">
+        <button class="symbtn" data-act="cycleSide" data-id="${a.id}" title="点击切换阵营" aria-label="切换阵营，当前：${SIDES[a.side].label}">${sym(a.side)}</button>
+        ${inp(base + 'name', a.name, {cls:'unit-name', ph:'名称', label:'行动者名称'})}
+        <span class="side-tag">${SIDES[a.side].label}</span>
+        ${a.side === 'self' && b.actors.filter(x => x.side === 'self').length === 1 ? '' : `<button class="x" data-act="delActor" data-id="${a.id}" aria-label="删除这个行动者">×</button>`}
+      </div>
+      <dl>
+        <dt>目标</dt><dd>${ta(base + 'goal', a.goal, {ph:ph.goal, label:'目标'})}</dd>
+        <dt>资源</dt><dd>${ta(base + 'resources', a.resources, {ph:ph.resources, label:'资源'})}</dd>
+        <dt>约束红线</dt><dd>${ta(base + 'limits', a.limits, {ph:ph.limits, label:'约束与红线'})}</dd>
+        <dt>风格</dt><dd>${ta(base + 'style', a.style, {ph:ph.style, label:'风格'})}</dd>
+      </dl>
+    </div>`;
+  }).join('');
+  return `<section class="panel">
+    <div class="ph"><h2>行动者</h2><span class="lbl">${b.actors.length} 方</span></div>
+    <p class="hint">包括你自己。环境力量（平台、技术、行业、时间）也算一方。</p>
+    <div class="units">${cards}</div>
+    <div class="row" style="margin-top:10px"><button class="btn sm" data-act="addActor">+ 加一方</button></div>
+    <div class="legend">
+      <span>${sym('self',14)}我</span><span>${sym('friend',14)}友方</span><span>${sym('hostile',14)}对手</span><span>${sym('neutral',14)}中立</span><span>${sym('unknown',14)}未知/环境</span>
+    </div>
+    <p class="hint" style="margin:6px 0 0">图形沿用北约 APP-6 军标框形。点图形切换阵营。</p>
+  </section>`;
+}
+function varsPanel(b, path){
+  const rows = b.vars.map(v => {
+    const now = curVar(b, v, path); const base = Number(v.base) || 3;
+    const pips = [1,2,3,4,5].map(n => `<button class="pip${n <= base ? ' on' : ''}" data-act="pip" data-id="${v.id}" data-n="${n}" aria-label="开局值设为 ${n}"></button>`).join('');
+    return `<div class="var">
+      ${inp('board:vars.' + v.id + '.name', v.name, {ph:'例如：稳定收入', label:'变量名'})}
+      <div class="pips" title="开局值">${pips}</div>
+      <span class="vnow${now > base ? ' up' : now < base ? ' down' : ''}" title="当前路线上的值">→ ${now}</span>
+      <button class="x" data-act="delVar" data-id="${v.id}" aria-label="删除变量">×</button>
+    </div>`;
+  }).join('');
+  return `<section class="panel">
+    <div class="ph"><h2>关键变量</h2><span class="lbl">1 很低 · 5 很高</span></div>
+    <p class="hint">方块是开局值，箭头后是当前路线推演到的值。少而准，别给自己假精确。</p>
+    <div class="vars">${rows || '<p class="blank">还没有变量。</p>'}</div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" data-act="addVar">+ 加变量</button></div>
+  </section>`;
+}
+function roundsPanel(b, path){
+  const lv = leaves(b); const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const headIsLeaf = lv.some(r => r.id === b.head);
+  let routes = '';
+  if (b.rounds.length) {
+    routes = lv.map((r, i) => `<button class="route" data-act="route" data-id="${r.id}" aria-pressed="${r.id === b.head}">路线 ${letters[i % 26]} · ${pathTo(b, r.id).length} 回合</button>`).join('');
+    if (!headIsLeaf) routes += `<span class="route" aria-pressed="true">新路线（从${b.head ? '第 ' + path.length + ' 回合' : '开局'}分出）</span>`;
+    else routes += `<button class="route" data-act="route" data-id="" title="保留现有路线，从开局重新推一遍">从开局另起</button>`;
+  }
+  const rounds = path.map((r, i) => roundCard(b, r, i, path)).join('');
+  return `<section class="panel">
+    <div class="ph"><h2>推演</h2><span class="lbl">每回合 = ${esc(b.turnUnit || '一段时间')}</span></div>
+    ${routes ? `<div class="routes">${routes}</div>` : '<p class="hint">写下你这一回合真正打算做的一件事。AI 会扮演其他各方出牌，裁判给出成功概率，再由 D100 骰子决定结果。任何一回合都可以回去分叉，比较不同路线。</p>'}
+    <div class="timeline">${rounds}</div>
+    ${composer(b, path, headIsLeaf)}
+  </section>`;
+}
+function roundCard(b, r, i, path){
+  const isHead = r.id === b.head; const isLeaf = !b.rounds.some(x => x.parent === r.id);
+  const btn = isHead && isLeaf ? `<button class="btn sm ghost" data-act="undo" data-id="${r.id}">撤销本回合</button>`
+    : !isHead ? `<button class="btn sm ghost" data-act="fork" data-id="${r.id}">从这里分叉</button>` : '';
+  const others = arr(r.others).map(o => `<div class="mv">${sym(r.mode === 'manual' ? 'unknown' : sideOf(b, o.actor), 16)}<div><b>${esc(o.actor)}：</b>${esc(o.action)}${o.why ? `<div class="sub">${esc(o.why)}</div>` : ''}</div></div>`).join('');
+  const j = r.judge || {};
+  const deltas = arr(r.varDelta).map(d => `<span class="delta ${d.d > 0 ? 'up' : 'down'}">${esc(d.name)} ${d.d > 0 ? '↑' : '↓'}</span>`).join('');
+  return `<article class="round" id="r-${r.id}">
+    <div class="round-h"><span class="rn">第 ${i + 1} 回合</span><span class="tu">${fmtDate(r.ts)}${r.mode === 'manual' ? ' · 手动裁决' : ''}</span><span class="spacer"></span>${btn}</div>
+    <div class="mv">${sym('self', 16)}<div><b>我：</b>${esc(r.my.action)}${r.my.intent ? `<div class="sub">意图：${esc(r.my.intent)}</div>` : ''}</div></div>
+    ${others}
+    <div class="judge ${j.success ? 'ok' : 'ko'}">
+      <div class="dice"><span class="k">D100</span><span class="roll" data-final="${j.roll}">${j.roll}</span><span class="k">≤ ${j.p}% ?</span><span class="res">${j.success ? '达成' : '受挫'}</span></div>
+      <div>${esc(j.outcome)}</div>
+      ${j.pWhy && j.pWhy !== '手动裁决' ? `<div class="sub" style="margin-top:4px">裁判：${esc(j.pWhy)}</div>` : ''}
+      ${deltas ? `<div class="deltas">${deltas}</div>` : ''}
+    </div>
+    ${arr(r.red).length ? `<div class="note"><span class="tag redt">红队</span><ul>${r.red.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+    ${r.blind ? `<div class="note"><span class="tag blindt">盲点 · ${esc(r.blind.lens)}</span>${esc(r.blind.text)}</div>` : ''}
+    ${j.alt ? `<details class="alt"><summary>如果骰子反过来</summary>${esc(j.alt)}</details>` : ''}
+  </article>`;
+}
+function composer(b, path, headIsLeaf){
+  const n = path.length + 1;
+  const forking = b.rounds.length && !headIsLeaf;
+  const busy = S.busy && S.busy.kind === 'round';
+  const lens = LENS_NAMES.map(l => `<button class="pill" data-act="draftLens" data-lens="${l}" aria-pressed="${S.draft.lenses.includes(l)}" title="${esc(LENSES.find(x => x[0] === l)[1])}">${l}</button>`).join('');
+  const manualOn = S.ai === 'off' || S.manual.on;
+  const manual = manualOn ? `<div class="manual">
+      <span class="lbl">手动裁决：先换位替各方出牌，再估一个成功概率，掷骰决定。</span>
+      ${ta('manual:others', S.manual.others, {cls:'field', rows:2, ph:'其他各方这一回合会怎么做？逐个站到他们的位置上写'})}
+      <div class="rangebox"><label class="lbl" for="${fid('manual:p')}">达成概率</label><input type="range" min="1" max="99" id="${fid('manual:p')}" data-bind="manual:p" data-type="num" data-out="out-mp" value="${S.manual.p}"><output id="out-mp">${S.manual.p}%</output></div>
+      ${ta('manual:succ', S.manual.succ, {cls:'field', ph:'如果达成，局面会怎样'})}
+      ${ta('manual:fail', S.manual.fail, {cls:'field', ph:'如果受挫，局面会怎样'})}
+      <div class="row"><button class="btn primary" data-act="advanceManual">掷 D100 并记录</button>${S.ai !== 'off' ? '<button class="btn ghost" data-act="toggleManual">改回 AI 裁决</button>' : ''}</div>
+    </div>` : '';
+  const actions = busy ? busyLine('各方正在出牌，裁判在估概率…（通常 10–60 秒）')
+    : manualOn ? '' : `<div class="row"><button class="btn primary" data-act="advance">推进回合</button><button class="btn ghost" data-act="toggleManual">我自己裁决</button><span class="lbl">AI 扮演各方 · ⌘/Ctrl + Enter</span></div>`;
+  return `<div class="composer">
+    <div class="composer-h"><b>第 ${n} 回合 · 你的行动</b>${forking ? '<span class="tag friendt">会开出一条新路线</span>' : ''}</div>
+    ${ta('draft:action', S.draft.action, {cls:'field', rows:2, ph:`这${b.turnUnit || '一回合'}你实际打算做的一件事`, label:'你的行动'})}
+    ${inp('draft:intent', S.draft.intent, {cls:'field', ph:'想达成什么（到回合末能看出来有没有做到）', label:'意图'})}
+    ${ta('draft:why', S.draft.why, {cls:'field', ph:'为什么这么做（可选）', label:'理由'})}
+    <div class="chiprow"><span class="lbl">推进前过一遍：</span>${lens}</div>
+    ${actions}${manual}
+  </div>`;
+}
+function worldsPanel(b){
+  const ax = b.axes; const busy = S.busy && S.busy.kind === 'worlds';
+  const cell = (k) => {
+    const w = b.worlds[k]; const xs = k[1] === '0' ? (ax.x.lo || 'X 低') : (ax.x.hi || 'X 高'); const ys = k[3] === '0' ? (ax.y.lo || 'Y 低') : (ax.y.hi || 'Y 高');
+    const base = 'board:worlds.' + k + '.'; const here = b.world === k;
+    return `<div class="cell${here ? ' here' : ''}">
+      <div class="coord">${esc(ys)} × ${esc(xs)}</div>
+      ${inp(base + 'name', w.name, {cls:'wname', ph:'给这个世界起名', label:'世界名称'})}
+      ${ta(base + 'story', w.story, {ph:'这个世界是什么样', label:'世界描述'})}
+      <span class="lbl">我的打法</span>${ta(base + 'move', w.move, {ph:'在这个世界里我怎么走', label:'我的打法'})}
+      <span class="lbl">预警信号</span>${ta(base + 'signals', w.signals, {ph:'看到什么，说明正在走向这里', label:'预警信号'})}
+      <button class="btn sm${here ? ' primary' : ''}" data-act="setWorld" data-k="${k}">${here ? '现实更接近这里 ✓' : '现实更接近这里'}</button>
+    </div>`;
+  };
+  return `<section class="panel">
+    <div class="ph"><h2>情景</h2><span class="lbl">2 × 2</span></div>
+    <p class="hint">选两条最关键、又最不确定的变量交叉成四个世界。不是预测哪个会发生，而是提前想好每个世界里怎么走。</p>
+    <div class="axes">
+      <div class="axis"><span class="lbl">横轴 X</span>${inp('board:axes.x.name', ax.x.name, {cls:'aname', ph:'不确定性一', label:'横轴名称'})}<div class="ends">${inp('board:axes.x.lo', ax.x.lo, {ph:'低端', label:'横轴低端'})}<span>↔</span>${inp('board:axes.x.hi', ax.x.hi, {ph:'高端', label:'横轴高端'})}</div></div>
+      <div class="axis"><span class="lbl">纵轴 Y</span>${inp('board:axes.y.name', ax.y.name, {cls:'aname', ph:'不确定性二', label:'纵轴名称'})}<div class="ends">${inp('board:axes.y.lo', ax.y.lo, {ph:'低端', label:'纵轴低端'})}<span>↔</span>${inp('board:axes.y.hi', ax.y.hi, {ph:'高端', label:'纵轴高端'})}</div></div>
+    </div>
+    <div class="quad">${cell('x0y1')}${cell('x1y1')}${cell('x0y0')}${cell('x1y0')}</div>
+    ${aiAvailable() ? `<div class="row" style="margin-top:10px">${busy ? busyLine('正在描绘四个世界…') : '<button class="btn sm" data-act="genWorlds">AI 补全空白处</button>'}</div>` : ''}
+  </section>`;
+}
+function asmPanel(b){
+  const rows = b.assumptions.map(s => {
+    const base = 'board:assumptions.' + s.id + '.';
+    return `<div class="asm ${s.kind === 'fact' ? 'fact' : 'assume'}">
+      <button class="kind" data-act="toggleKind" data-id="${s.id}" title="切换事实 / 假设">${s.kind === 'fact' ? '事实' : '假设'}</button>
+      ${ta(base + 'text', s.text, {cls:'atext', ph:s.kind === 'fact' ? '一条你能查证的事实' : '一条你相信、但没验证过的判断', label:'内容'})}
+      ${s.kind === 'fact' ? '<span></span>' : `<label class="conf" title="置信度">${inp(base + 'conf', s.conf ?? 50, {type:'number', num:true, extra:' min="0" max="100"', label:'置信度'})}%</label>`}
+      <button class="x" data-act="delAsm" data-id="${s.id}" aria-label="删除这一条">×</button>
+      ${s.kind === 'fact' ? '' : ta(base + 'ifWrong', s.ifWrong, {cls:'ifw', ph:'如果它是错的，会怎样？', label:'如果错了'})}
+    </div>`;
+  }).join('');
+  const nA = b.assumptions.filter(s => s.kind !== 'fact' && s.text).length, nF = b.assumptions.filter(s => s.kind === 'fact' && s.text).length;
+  return `<section class="panel">
+    <div class="ph"><h2>假设登记簿</h2><span class="lbl">事实 ${nF} · 假设 ${nA}</span></div>
+    <p class="hint">黑字写事实，蓝字写假设。推演做完你常会发现，结论其实站在假设上。</p>
+    <div>${rows || '<p class="blank">还没有条目。</p>'}</div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" data-act="addAsm">+ 加一条</button></div>
+  </section>`;
+}
+function reviewPanel(b, path){
+  const rv = b.review; const busy = S.busy && S.busy.kind === 'review';
+  let body = '';
+  if (rv) {
+    const stale = rv.head !== b.head;
+    body = `<div class="rv">
+      <div class="sub">${fmtDate(rv.ts)} 的复盘${stale ? ' · 路线已经变了，可以重新复盘' : ''}</div>
+      ${rv.summary ? `<p style="margin-top:6px">${esc(rv.summary)}</p>` : ''}
+      ${rv.loadBearing.length ? `<h4>撑起结论的假设</h4><ul>${rv.loadBearing.map(x => `<li><b>${esc(x.assumption)}</b><div class="sub">若错：${esc(x.risk)}</div></li>`).join('')}</ul>` : ''}
+      ${rv.red ? `<h4>红队</h4><p>${esc(rv.red)}</p>` : ''}
+      ${rv.signals.length ? `<h4>现实中要盯的信号</h4><ul>${rv.signals.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      ${rv.next.length ? `<h4>下一步（可撤回的小动作）</h4><ul>${rv.next.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      ${rv.bets.length ? `<h4>可以验证的判断</h4>${rv.bets.map((x, i) => `<div class="bet"><div>${esc(x.text)}<div class="sub mono">参考 ${x.p}% · 到期 ${esc(x.due)}</div></div><button class="btn sm" data-act="betToLedger" data-i="${i}">${x.added ? '再填一次' : '写进判断簿'}</button></div>`).join('')}` : ''}
+      ${rv.lesson ? `<h4>可迁移的原则</h4><p class="lesson">${esc(rv.lesson)}</p>` : ''}
+    </div>`;
+  }
+  return `<section class="panel">
+    <div class="ph"><h2>复盘</h2></div>
+    <p class="hint">把推演变成现实里的信号、判断和下一步。</p>
+    ${aiAvailable() ? (busy ? busyLine('复盘官在看整条路线…') : `<button class="btn" data-act="review">${rv ? '重新复盘当前路线' : 'AI 复盘当前路线'}</button>`) : ''}
+    ${body}
+    <label class="lbl2" for="${fid('board:notes')}">我的复盘笔记</label>
+    ${ta('board:notes', b.notes, {cls:'field', rows:3, ph:'这次推演让我改变了哪些看法？下一步做什么？'})}
+  </section>`;
+}
+
+function latestDrill(){ return [...Store.data.drills.values()].sort((a,b) => b.ts - a.ts)[0] || null; }
+function lensPanel(drills){
+  const used = {}, missed = {};
+  for (const d of drills) { if (!d.revealed) continue; for (const l of arr(d.lenses)) used[l] = (used[l]||0) + 1; for (const m of arr(d.coach && d.coach.missed)) missed[m.lens] = (missed[m.lens]||0) + 1; }
+  const any = Object.keys(used).length + Object.keys(missed).length;
+  return `<section class="panel">
+    <div class="ph"><h2>十二透镜</h2></div>
+    <p class="hint">战略思考时可以逐个过的问题。练习时勾选你用到的，教练会指出漏掉的${any ? '，右边是你的累计记录' : '；做几道题后，这里会显示你的盲区'}。</p>
+    ${LENSES.map(([n, q]) => `<div class="lc"><div><b>${n}</b><div class="lq">${q}</div></div>${any ? `<div class="lstat">用 ${used[n]||0}<br><span class="${(missed[n]||0) > (used[n]||0) ? 'miss' : ''}">漏 ${missed[n]||0}</span></div>` : '<span></span>'}</div>`).join('')}
+  </section>`;
+}
+function drillView(){
+  if (Store.mode === 'pending') return `<div class="panel"><div class="empty">${emptyArt()}<h2>正在打开训练场…</h2></div></div>`;
+  const drills = [...Store.data.drills.values()].sort((a,b) => b.ts - a.ts);
+  const d = (S.drillId && Store.data.drills.get(S.drillId)) || drills[0] || null;
+  if (d) S.drillId = d.id;
+  const busyGen = S.busy && S.busy.kind === 'drill';
+  const doms = Object.entries(DOMAINS).map(([k, v]) => `<button class="pill" data-act="domain" data-d="${k}" aria-pressed="${S.domain === k}">${v}</button>`).join('');
+  const top = `<section class="panel">
+    <div class="ph"><h2>每日一局</h2></div>
+    <p class="hint">AI 找一个真实案例，停在决策点上。你先下判断、写理由、标信心，再看历史怎么走，最后由教练点评你的推理。</p>
+    ${aiAvailable() ? `<div class="chiprow" style="margin-bottom:10px">${doms}</div>
+      ${busyGen ? busyLine('正在找一个合适的案例…') : `<button class="btn primary" data-act="newDrill">出一道新题</button>`}`
+      : `<p class="sub">这里用不了 AI 出题。可以拿右边的透镜卡复盘一个你熟悉的历史或商业案例，或者去判断簿写下一条预测。</p>`}
+  </section>`;
+  const hist = drills.length ? `<section class="panel"><div class="ph"><h2>练习记录</h2><span class="lbl">${drills.length} 局</span></div><div class="hist">${drills.slice(0, 30).map(x => `<button data-act="openDrill" data-id="${x.id}" aria-current="${x.id === S.drillId}"><span class="d">${fmtDate(x.ts)}</span><span class="t">${esc(x.case && x.case.title)}</span><span class="d">${x.revealed ? '已揭晓' : '待作答'}</span></button>`).join('')}</div></section>` : '';
+  return `<div class="two"><div class="col">${top}${d ? caseCard(d) : ''}</div><aside class="col">${lensPanel(drills)}${hist}</aside></div>`;
+}
+function caseCard(d){
+  const c = d.case || {};
+  const chips = LENS_NAMES.map(l => `<button class="pill" data-act="drillLens" data-lens="${l}" aria-pressed="${arr(d.lenses).includes(l)}">${l}</button>`).join('');
+  let lower;
+  if (!d.revealed) {
+    lower = `<div class="form">
+      <label class="lbl" for="${fid('drill:answer')}">你的决策</label>
+      ${ta('drill:answer', d.answer, {cls:'field', rows:3, ph:'如果你是决策者，你会怎么做？'})}
+      <label class="lbl" for="${fid('drill:why')}">关键理由</label>
+      ${ta('drill:why', d.why, {cls:'field', rows:2, ph:'你最看重哪几个因素？对手会怎么反应？'})}
+      <div class="chiprow"><span class="lbl">我用到的透镜：</span>${chips}</div>
+      <div class="rangebox"><label class="lbl" for="${fid('drill:conf')}">我的决策会奏效的信心</label><input type="range" min="1" max="99" id="${fid('drill:conf')}" data-bind="drill:conf" data-type="num" data-out="out-dc" value="${d.conf}"><output id="out-dc">${d.conf}%</output></div>
+      <div class="row"><button class="btn primary" data-act="reveal">提交并揭晓</button><span class="lbl">答案会保存，揭晓后不能再改</span></div>
+    </div>`;
+  } else {
+    const k = d.coach; const busy = S.busy && S.busy.kind === 'coach';
+    const coachHtml = busy ? busyLine('教练在看你的推理…')
+      : k ? `<div class="coach" style="display:grid;gap:10px">
+          ${k.verdict ? `<div class="verdict">${esc(k.verdict)}</div>` : ''}
+          ${k.strong.length ? `<div><h4>做得好的</h4><ul>${k.strong.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+          ${k.missed.length ? `<div><h4>漏掉的透镜</h4><ul>${k.missed.map(m => `<li><span class="tag blindt">${esc(m.lens)}</span>${esc(m.why)}</li>`).join('')}</ul></div>` : ''}
+          ${k.calibration ? `<div><h4>信心校准</h4><p>${esc(k.calibration)}</p></div>` : ''}
+          ${k.insight ? `<div class="insight">${esc(k.insight)}</div>` : ''}
+          ${k.transfer ? `<div><h4>用到你自己的局面上</h4><p>${esc(k.transfer)}</p></div>` : ''}
+        </div>`
+      : aiAvailable() ? `<button class="btn" data-act="coach">请教练点评</button>` : `<p class="sub">对照右边的透镜卡，自己写下这次漏掉了什么。</p>`;
+    lower = `<div class="reveal">
+      <div class="mine"><span class="lbl">你的决策 · 信心 ${d.conf}%</span><div>${esc(d.answer)}</div>${d.why ? `<div class="sub" style="margin-top:4px">${esc(d.why)}</div>` : ''}${arr(d.lenses).length ? `<div class="chiprow" style="margin-top:6px">${d.lenses.map(l => `<span class="pill static" aria-pressed="true">${esc(l)}</span>`).join('')}</div>` : ''}</div>
+      <h4>历史上实际发生的</h4>
+      <div class="setup">${paras(c.outcome)}</div>
+      ${c.lesson ? `<p class="lesson">${esc(c.lesson)}</p>` : ''}
+      ${c.uncertain ? `<p class="sub">出题人没有把握的细节：${esc(c.uncertain)}</p>` : ''}
+      <h4>教练点评</h4>
+      ${coachHtml}
+    </div>`;
+  }
+  return `<article class="panel case">
+    <div class="lbl">${esc(DOMAINS[d.domain] || '')} · ${fmtDate(d.ts)}</div>
+    <h3>${esc(c.title)}</h3>
+    <div class="meta">${esc(c.when)}${c.who ? ' · 决策者：' + esc(c.who) : ''}</div>
+    <div class="setup">${paras(c.setup)}</div>
+    <div class="decision"><span class="lbl">决策点</span>${esc(c.question)}</div>
+    ${lower}
+  </article>`;
+}
+
+function calChart(scored){
+  const bins = [[0,20],[20,40],[40,60],[60,80],[80,101]].map(([lo, hi]) => {
+    const xs = scored.filter(j => j.p >= lo && j.p < hi);
+    return xs.length ? {n:xs.length, p:xs.reduce((s, j) => s + j.p, 0) / xs.length / 100, f:xs.filter(j => j.status === 'yes').length / xs.length} : null;
+  }).filter(Boolean);
+  const L = 40, R = 292, T = 12, B = 190; const X = v => L + (R - L) * v, Y = v => B - (B - T) * v;
+  let g = '';
+  for (const v of [0, .5, 1]) { g += `<line class="gl" x1="${X(v)}" y1="${T}" x2="${X(v)}" y2="${B}"/><line class="gl" x1="${L}" y1="${Y(v)}" x2="${R}" y2="${Y(v)}"/><text class="ax" x="${X(v)}" y="${B + 14}" text-anchor="middle">${v * 100}%</text><text class="ax" x="${L - 6}" y="${Y(v) + 3.5}" text-anchor="end">${v * 100}%</text>`; }
+  g += `<line class="diag" x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}"/>`;
+  g += bins.map(b => `<circle class="pt" cx="${X(b.p).toFixed(1)}" cy="${Y(b.f).toFixed(1)}" r="${(4 + Math.min(b.n, 12) * 0.7).toFixed(1)}"/><text class="ptl" x="${(X(b.p) + 9).toFixed(1)}" y="${(Y(b.f) - 7).toFixed(1)}">${b.n}</text>`).join('');
+  g += `<text class="ax" x="${(L + R) / 2}" y="${B + 30}" text-anchor="middle">你给的概率</text><text class="ax" x="12" y="${(T + B) / 2}" text-anchor="middle" transform="rotate(-90 12 ${(T + B) / 2})">实际发生的比例</text>`;
+  return `<svg class="chart" viewBox="0 0 300 228" role="img" aria-label="校准图：横轴是你给的概率，纵轴是实际发生的比例">${g}</svg>`;
+}
+function ledgerView(){
+  if (Store.mode === 'pending') return `<div class="panel"><div class="empty">${emptyArt()}<h2>正在打开判断簿…</h2></div></div>`;
+  const all = [...Store.data.judgments.values()]; const today = todayISO();
+  const open = all.filter(j => j.status === 'open').sort((a, b) => str(a.due).localeCompare(str(b.due)));
+  const done = all.filter(j => j.status !== 'open').sort((a, b) => (b.resolvedAt||0) - (a.resolvedAt||0));
+  const scored = done.filter(j => j.status === 'yes' || j.status === 'no');
+  const brier = scored.length ? scored.reduce((s, j) => s + Math.pow(j.p / 100 - (j.status === 'yes' ? 1 : 0), 2), 0) / scored.length : null;
+  const overdue = open.filter(j => j.due && j.due <= today).length;
+  const delOrX = (j) => S.confirm === 'j:' + j.id ? `<span class="confirm">删除？<button class="btn sm danger" data-act="delJ" data-id="${j.id}">删除</button><button class="btn sm ghost" data-act="cancel">取消</button></span>` : `<button class="x" data-act="askDelJ" data-id="${j.id}" aria-label="删除这条判断">×</button>`;
+  const openRows = open.map(j => `<div class="jitem"><div class="jp">${j.p}%</div><div><div class="jt">${esc(j.text)}</div><div class="sub mono">到期 ${esc(j.due)} ${j.due && j.due <= today ? '<span class="flag">已到期 · 请结算</span>' : ''}</div>${j.basis ? `<div class="sub">${esc(j.basis)}</div>` : ''}<div class="jbtns"><button class="btn sm" data-act="resolve" data-id="${j.id}" data-v="yes">发生了</button><button class="btn sm" data-act="resolve" data-id="${j.id}" data-v="no">没发生</button><button class="btn sm ghost" data-act="resolve" data-id="${j.id}" data-v="void">作废</button></div></div>${delOrX(j)}</div>`).join('');
+  const doneRows = done.map(j => { const o = j.status === 'yes' ? 1 : 0; const bs = j.status === 'void' ? '' : ` · (${(j.p / 100).toFixed(2)} − ${o})² = ${Math.pow(j.p / 100 - o, 2).toFixed(3)}`; return `<div class="jitem"><div class="jp">${j.p}%</div><div><div class="jt">${esc(j.text)}</div><div class="sub mono"><span class="outc ${j.status}">${j.status === 'yes' ? '发生了' : j.status === 'no' ? '没发生' : '已作废'}</span>${bs}</div><div class="jbtns"><button class="btn sm ghost" data-act="reopen" data-id="${j.id}">改回待验证</button></div></div>${delOrX(j)}</div>`; }).join('');
+  const form = `<section class="panel">
+    <div class="ph"><h2>写下一条判断</h2></div>
+    <p class="hint">一条好的判断到期时能分清对错，并且带着你自己的概率。例如：「到明年 3 月底，我至少有一个原创故事进入了影像或游戏的实际制作」。</p>
+    <div class="jform">
+      ${ta('jd:text', S.jd.text, {cls:'field', rows:2, ph:'到某个日期，某件可检验的事会发生', label:'判断'})}
+      <div class="row">
+        <div class="rangebox" style="flex:1 1 220px"><label class="lbl" for="${fid('jd:p')}">发生概率</label><input type="range" min="1" max="99" id="${fid('jd:p')}" data-bind="jd:p" data-type="num" data-out="out-jp" value="${S.jd.p}"><output id="out-jp">${S.jd.p}%</output></div>
+        <label>到期 ${inp('jd:due', S.jd.due, {type:'date', cls:'field', label:'到期日'})}</label>
+      </div>
+      ${inp('jd:basis', S.jd.basis, {cls:'field', ph:'依据：为什么是这个概率（可选）', label:'依据'})}
+      <div class="row"><button class="btn primary" data-act="addJ">添加</button></div>
+    </div>
+  </section>`;
+  const stats = `<section class="panel">
+    <div class="ph"><h2>校准</h2></div>
+    <div class="stats">
+      <div class="stat"><div class="n">${scored.length}</div><div class="sub">已结算</div></div>
+      <div class="stat"><div class="n">${brier == null ? '—' : brier.toFixed(3)}</div><div class="sub">Brier 分数</div></div>
+      <div class="stat"><div class="n">${open.length}</div><div class="sub">待验证${overdue ? ` · ${overdue} 条到期` : ''}</div></div>
+    </div>
+    <p class="hint">Brier 分数是每条判断 (概率 − 结果)² 的平均，越低越好。0 是全知；什么都报 50% 得 0.250。</p>
+    ${scored.length ? calChart(scored) + '<p class="hint">点落在虚线下方是过度自信：你说七八成的事，实际发生得没那么多。落在上方是过度保守。圆点里的数字是条数。</p>'
+      : '<p class="blank">结算几条判断之后，这里会画出你的校准图：你说 70% 的事，是不是真的七成会发生。</p>'}
+  </section>`;
+  return `<div class="two"><div class="col">${form}
+    <section class="panel"><div class="ph"><h2>待验证</h2><span class="lbl">${open.length} 条</span></div>${openRows || '<p class="blank">还没有待验证的判断。推演台的复盘会给出候选，也可以在上面直接写。</p>'}</section>
+    ${done.length ? `<section class="panel"><div class="ph"><h2>已结算</h2><span class="lbl">${done.length} 条</span></div>${doneRows}</section>` : ''}
+  </div><aside class="col">${stats}</aside></div>`;
+}
+function view(){ return header() + `<main>${S.tab === 'board' ? boardView() : S.tab === 'drill' ? drillView() : ledgerView()}</main>`; }
+
+/* ---------- render loop (keeps focus, respects Chinese IME composition) ---------- */
+let composing = false, pendingRender = false, rq = false;
+function fieldFocused(){ const a = document.activeElement; return !!(a && app.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
+function autosize(el){ el.style.height = 'auto'; el.style.height = (el.scrollHeight + 2) + 'px'; }
+function autosizeAll(){ app.querySelectorAll('textarea.auto').forEach(autosize); }
+function doRender(){
+  if (composing) { pendingRender = true; return; }
+  const a = document.activeElement; const inApp = !!(a && app.contains(a)); const fidNow = inApp ? a.id : null; let sel = null;
+  if (inApp && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && /^(text|search)$/.test(a.type)))) { try { sel = [a.selectionStart, a.selectionEnd]; } catch(e){} }
+  const sy = window.scrollY;
+  app.innerHTML = view();
+  autosizeAll();
+  if (fidNow) { const el = document.getElementById(fidNow); if (el) { try { el.focus({preventScroll:true}); if (sel) el.setSelectionRange(sel[0], sel[1]); } catch(e){} } }
+  if (Math.abs(window.scrollY - sy) > 2) window.scrollTo(0, sy);
+  if (S.fresh) { const id = S.fresh; S.fresh = null; animateRoll(id); }
+}
+function render(){ if (rq) return; rq = true; requestAnimationFrame(() => { rq = false; doRender(); }); }
+function onData(){ if (composing || fieldFocused()) { pendingRender = true; return; } render(); }
+function focusId(id){ requestAnimationFrame(() => { const el = document.getElementById(id); if (el) { el.focus(); if (el.scrollIntoView) el.scrollIntoView({block:'center', behavior: reduceMotion ? 'auto' : 'smooth'}); } }); }
+function animateRoll(id){
+  const card = document.getElementById('r-' + id); if (!card) return;
+  card.scrollIntoView({block:'nearest', behavior: reduceMotion ? 'auto' : 'smooth'});
+  const el = card.querySelector('.roll'); if (!el || reduceMotion) return;
+  const fin = el.dataset.final; let k = 0;
+  const t = setInterval(() => { el.textContent = String(Math.floor(Math.random() * 100) + 1); if (++k > 12) { clearInterval(t); el.textContent = fin; } }, 55);
+}
+let toastTimer;
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 4200); }
+
+/* ---------- events ---------- */
+function setPath(obj, path, v){
+  const parts = path.split('.'); let o = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const p = parts[i]; let nx = Array.isArray(o) ? o.find(x => x && x.id === p) : o[p];
+    if (nx == null) { if (Array.isArray(o)) return false; nx = {}; o[p] = nx; }
+    o = nx;
+  }
+  if (Array.isArray(o)) return false;
+  o[parts[parts.length - 1]] = v; return true;
+}
+function handleInput(el){
+  const bind = el && el.dataset && el.dataset.bind; if (!bind) return;
+  let v = el.value;
+  if (el.dataset.type === 'num') { v = Number(v); if (!Number.isFinite(v)) v = 0; }
+  const i = bind.indexOf(':'); const scope = bind.slice(0, i), path = bind.slice(i + 1);
+  if (scope === 'board') { const b = curBoard(); if (b && setPath(b, path, v)) changed(b); }
+  else if (scope === 'drill') { const d = Store.data.drills.get(S.drillId); if (d && !d.revealed && setPath(d, path, v)) touch('drills', d.id); }
+  else if (scope === 'draft') { setPath(S.draft, path, v); saveUI(); }
+  else if (scope === 'manual') setPath(S.manual, path, v);
+  else if (scope === 'jd') setPath(S.jd, path, v);
+  if (el.dataset.out) { const o = document.getElementById(el.dataset.out); if (o) o.textContent = v + '%'; }
+  if (el.tagName === 'TEXTAREA') autosize(el);
+}
+app.addEventListener('input', e => handleInput(e.target));
+app.addEventListener('compositionstart', () => { composing = true; });
+app.addEventListener('compositionend', e => { composing = false; handleInput(e.target); if (pendingRender && !fieldFocused()) { pendingRender = false; render(); } });
+app.addEventListener('focusout', () => { setTimeout(() => { if (pendingRender && !composing && !fieldFocused()) { pendingRender = false; render(); } }, 0); });
+app.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]'); if (!t || t.tagName === 'SELECT') return;
+  const f = ACT[t.dataset.act]; if (f) { e.preventDefault(); f(t, e); }
+});
+app.addEventListener('change', e => { const t = e.target; if (t.tagName === 'SELECT' && t.dataset.act && ACT[t.dataset.act]) ACT[t.dataset.act](t, e); });
+app.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    const b = e.target.dataset && e.target.dataset.bind;
+    if (b && b.startsWith('draft:')) { e.preventDefault(); (S.ai === 'off' || S.manual.on) ? advanceManual() : advance(); }
+    else if (b && b.startsWith('jd:')) { e.preventDefault(); ACT.addJ(); }
+  }
+});
+let rzTimer; window.addEventListener('resize', () => { clearTimeout(rzTimer); rzTimer = setTimeout(autosizeAll, 150); });
+
+doRender();
+initStore();
+initAI();
+</script>
+
+</body></html>

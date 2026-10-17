@@ -378,6 +378,10 @@ function homeView() {
     <div class="sec-h"><h2>推演档案</h2><span class="faint small">${runs.length} 局</span></div>
     <div class="list">${items || '<div class="empty">还没有推演。下次要做决定的时候，来这里跑一遍。</div>'}</div>
     ${calib}
+    <a class="altcard" href="sandbox/">
+      <div><span class="faint small">另一种用法</span><h3>长期沙盘</h3><p>不为某一个决定，而是长期推演你的整体局面：一回合代表一个季度，AI 扮演各方出牌，D100 骰子定结果；还有案例训练场和预测校准簿。</p></div>
+      <span class="go">打开 →</span>
+    </a>
     <footer class="foot"><span>数据只保存在这个浏览器里，不会上传到任何服务器。</span><button class="link" data-act="drawer">导出备份 / AI 设置</button></footer>
   </main>`;
 }
