@@ -325,12 +325,12 @@ function homeView() {
     calib = `<div class="calib"><b>你复盘过 ${rev.length} 个决定</b><span class="muted">其中 ${goodDec} 个推理扎实。落子时你平均有 <span class="mono">${Math.round(conf)}%</span> 的把握，实际结果令你满意的比例是 <span class="mono">${pct(goodOut)}</span>${Math.abs(conf / 100 - goodOut) > 0.15 && rev.length >= 3 ? (conf / 100 > goodOut ? '：你倾向于过度自信。' : '：你比自己以为的更准。') : '。'}</span></div>`;
   }
   return `${topBar()}<main class="wrap">
-    <section class="hero">
+    <div class="hero-wrap"><section class="hero">
       <h1>做决定之前，<br>先把未来推演一遍。</h1>
       <p>列出你能走的几条路，摆好棋盘，让每条路掷出它所有可能的未来。你会看清哪条路最好，也会看清哪条路会碰到你的底线。</p>
       <div class="row"><button class="btn primary lg" data-act="newRun">开始一局推演</button>${runs.some(r => r.sample) ? '<button class="btn ghost" data-act="open" data-id="sample">看看示例</button>' : ''}</div>
-    </section>
-    <div class="flow">${STEPS.map(s => `<div><span class="n">${s.k}</span><b>${s.name}</b><p>${esc(s.brief)}</p></div>`).join('')}</div>
+    </section>${heroHTML()}</div>
+    ${flowHTML()}
     <div class="sec-h"><h2>推演档案</h2><span class="faint small">${runs.length} 局</span></div>
     <div class="list">${items || '<div class="empty">还没有推演。下次要做决定的时候，来这里跑一遍。</div>'}</div>
     ${calib}${calibHTML(runs)}
@@ -354,31 +354,6 @@ function runView(r) {
   </main></div>`;
 }
 
-function stepFrame(r) {
-  const sug = UI.sug.frame && UI.sug.frame.rid === r.id ? UI.sug.frame : null;
-  const opts = r.options.map((o, i) => `<div class="opt"><span class="let">${LET[i]}</span>${inp('run:options.' + o.id + '.label', o.label, {ph: i === 0 ? '第一条路' : i === 1 ? '第二条路' : '另一条路', label: '选项 ' + LET[i]})}${r.options.length > 1 ? `<button class="x" data-act="delOpt" data-id="${o.id}" aria-label="删除选项 ${LET[i]}">×</button>` : '<span></span>'}</div>`).join('');
-  const busy = UI.busy && UI.busy.kind === 'frame';
-  let sugHTML = '';
-  if (sug) {
-    sugHTML = `<div class="sug">
-      <h3>${SPARK}AI 的建议</h3>
-      ${sug.question && sug.question !== r.question ? `<div><div class="q">${esc(sug.question)}</div>${sug.why ? `<p class="muted small" style="margin-top:4px">${esc(sug.why)}</p>` : ''}<button class="btn sm" style="margin-top:8px" data-act="useQ">换成这个问法</button></div>` : ''}
-      ${sug.options.length ? `<div><p class="lab">你可能没想到的路</p><div class="adds">${sug.options.map((t, i) => `<button class="add${sug.used[i] ? ' used' : ''}" data-act="addSugOpt" data-i="${i}"${sug.used[i] ? ' disabled' : ''}>${sug.used[i] ? '已加入' : '+'} ${esc(t)}</button>`).join('')}</div></div>` : ''}
-      ${sug.door ? `<div class="small"><span class="tag ${sug.door.includes('单') ? 'one' : 'two'}">${esc(sug.door)}</span> <span class="muted">${esc(sug.doorWhy)}</span></div>` : ''}
-    </div>`;
-  }
-  return `
-  <section class="block">${ta('run:question', r.question, {cls: 'qfield', rows: 1, ph: '我要不要……？', label: '你要做的决定'})}</section>
-  <section class="block"><h2>可以走的路</h2><div class="rows">${opts}</div>
-    <div class="card-f">${r.options.length < 4 ? '<button class="btn sm" data-act="addOpt">+ 加一条路</button>' : ''}<span class="hint">"维持现状"也算一条路。最多四条。</span></div></section>
-  <section class="block"><h2>推演看多远</h2><div class="pills">${HORIZONS.map(h => `<button class="pill" data-act="horizon" data-v="${h}" aria-pressed="${r.horizon === h}">${h}</button>`).join('')}</div></section>
-  <section class="grid2">
-    <div><label class="lab" for="${fid('run:bottom')}">底线：无论如何不能发生的事</label>${inp('run:bottom', r.bottom, {ph: '例如：存款不能低于 6 个月生活费'})}</div>
-    <div><label class="lab" for="${fid('run:values')}">你最在乎的</label>${inp('run:values', r.values, {ph: '例如：自由、收入、作品'})}</div>
-  </section>
-  <section class="block">${busy ? busyLine('正在看你的问题…') : `<div class="card-f"><button class="btn ai" data-act="aiFrame">${SPARK}帮我把问题问对</button><span class="hint">AI 会检查问法、补充你没想到的路，并判断它能不能撤回。</span></div>`}${errLine('frame')}${sugHTML}</section>`;
-}
-
 function sideOfActor(r, name) {
   const n = str(name); if (!n) return 'unknown';
   const a = r.actors.find(a => a.name && (a.name === n || n.includes(a.name) || a.name.includes(n)));
@@ -395,7 +370,7 @@ function stepChoose(r) {
   if (!o) return `<section class="block"><h2>你选哪一条</h2><div class="choices" role="radiogroup">${choices}</div></section>`;
   const sug = UI.sug.red && UI.sug.red.rid === r.id && UI.sug.red.oid === o.id ? UI.sug.red : null;
   const busy = UI.busy && UI.busy.kind === 'red';
-  const trips = r.choice.tripwires.map(t => `<div class="trip"><span>如果看到</span>${inp('run:choice.tripwires.' + t.id + '.see', t.see, {ph: '一个可以观察到的信号', label: '信号'})}<span class="do-l">我就</span><div class="do">${inp('run:choice.tripwires.' + t.id + '.do', t.do, {ph: '预先想好的动作', label: '动作'})}</div><button class="x" data-act="delTrip" data-id="${t.id}" aria-label="删除">×</button></div>`).join('');
+  const trips = r.choice.tripwires.map(t => `<div class="trip"><span>如果看到</span>${inp('run:choice.tripwires.' + t.id + '.see', t.see, {ph: '一个可以观察到的信号', label: '信号'})}<span class="do-l">我就</span><div class="do">${inp('run:choice.tripwires.' + t.id + '.do', t.do, {ph: '预先想好的动作', label: '动作'})}</div><button class="x" data-act="delTrip" data-id="${t.id}" aria-label="删除">×</button><select class="field tsel" id="${fid('run:choice.tripwires.' + t.id + '.nodeId')}" data-bind="run:choice.tripwires.${t.id}.nodeId" data-rerender="1" aria-label="挂在哪个节点上"><option value="">挂在哪个节点上…</option>${o.nodes.map((n, i) => `<option value="${n.id}"${t.nodeId === n.id ? ' selected' : ''}>节点 ${i + 1}：${esc(n.text)}</option>`).join('')}</select></div>`).join('');
   let sugHTML = '';
   if (sug) {
     sugHTML = `<div class="sug"><h3>${SPARK}红队的意见</h3>
@@ -405,6 +380,7 @@ function stepChoose(r) {
     </div>`;
   }
   return `<section class="block"><h2>你选哪一条</h2><div class="choices" role="radiogroup">${choices}</div></section>
+  ${o.nodes.length ? `<section class="vizbox"><div class="vh"><h3>你选的路</h3><span class="hint">绊线挂到节点上，会画成河上的闸门</span></div>${riverSVG(r, o, {gates: gatesOf(r, o)})}</section>` : ''}
   <section class="block"><label class="lab" for="${fid('run:choice.why')}">为什么是它</label>${ta('run:choice.why', r.choice.why, {rows: 2, ph: '你最看重它的哪一点？你愿意接受它的哪些代价？'})}</section>
   <section class="block"><h2>事前验尸</h2><p class="hint">假设一年后回头看，这个决定失败了。最可能是因为什么？</p>${ta('run:choice.premortem', r.choice.premortem, {rows: 3, ph: '它失败，是因为……'})}
     ${busy ? busyLine('红队在找漏洞…') : `<div class="card-f"><button class="btn ai" data-act="aiRed">${SPARK}请红队来攻击这个选择</button></div>`}${errLine('red')}${sugHTML}</section>
@@ -449,7 +425,7 @@ function stepDoc(r) {
     <div class="doc-h"><span class="ttl">决策书</span><span class="meta">战略推演<br>${fmtDate(r.decidedAt || r.updated)}</span></div>
     <div class="sec"><span>问题</span><div class="q">${esc(r.question)}</div></div>
     <div class="sec"><span>我的选择</span><div><div class="big">${optLetter(r, o)}. ${esc(o.label)}</div>${r.choice.why ? `<p class="muted" style="margin-top:6px">${esc(r.choice.why)}</p>` : ''}</div></div>
-    ${st ? `<div class="sec"><span>推演</span><div style="display:grid;gap:10px;min-width:0">${riverSVG(r, o, {actual: (r.review || {}).actual, w: Math.min(vizW(), 560)})}<div style="overflow-x:auto"><table class="cmp"><tr class="faint"><td></td><td>选项</td><td class="n">期望</td><td class="n">好结局</td><td class="n">触底</td></tr>${cmp}</table></div></div></div>` : ''}
+    ${st ? `<div class="sec"><span>推演</span><div style="display:grid;gap:10px;min-width:0">${riverSVG(r, o, {actual: (r.review || {}).actual, gates: gatesOf(r, o), w: Math.min(vizW(), 560)})}<div style="overflow-x:auto"><table class="cmp"><tr class="faint"><td></td><td>选项</td><td class="n">期望</td><td class="n">好结局</td><td class="n">触底</td></tr>${cmp}</table></div></div></div>` : ''}
     ${as.length ? `<div class="sec"><span>我在赌的</span><ul>${as.map(n => `<li>${esc(n.text)} <span class="mono faint">${n.conf}%</span></li>`).join('')}</ul></div>` : ''}
     ${pm.length ? `<div class="sec"><span>可能的败因</span><ul>${pm.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
     ${ts.length ? `<div class="sec"><span>绊线</span><ul>${ts.map(t => `<li>如果看到<b>${esc(t.see)}</b>，我就${esc(t.do)}</li>`).join('')}</ul></div>` : ''}
@@ -513,6 +489,7 @@ function doRender() {
   if (fidNow && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && /^(text|search|password)$/.test(a.type)))) { try { sel = [a.selectionStart, a.selectionEnd]; } catch (e) {} }
   $app.innerHTML = view();
   $app.querySelectorAll('textarea.auto').forEach(autosize);
+  if (typeof afterRender === 'function') afterRender();
   if (fidNow) { const el = document.getElementById(fidNow); if (el) { try { el.focus({preventScroll: true}); if (sel) el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
   if (UI.justRolled) { const id = UI.justRolled; UI.justRolled = null; revealRoll(id); }
   ensureDatalist();
@@ -543,6 +520,7 @@ function handleInput(el) {
   if (setPath(r, path, v)) touched(r);
   if (el.dataset.out) { const o = document.getElementById(el.dataset.out); if (o) o.textContent = v + '%'; }
   if (el.tagName === 'TEXTAREA') autosize(el);
+  if (typeof afterInput === 'function') afterInput(el);
 }
 $app.addEventListener('input', e => handleInput(e.target));
 $app.addEventListener('change', e => { const el = e.target; if (el.dataset.rerender || el.type === 'date') { handleInput(el); doRender(); } if (el.id === 'import-file') importFile(el); });

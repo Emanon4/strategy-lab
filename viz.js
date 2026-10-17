@@ -52,7 +52,7 @@ function riverSVG(r, o, opt = {}) {
   const L = lattice(o); if (!L.n) return '';
   const [lo, hi] = domain(r); const F = floorOf(r);
   const W = opt.w || vizW(), narrow = W < 480;
-  const ml = narrow ? 22 : 40, mr = narrow ? 82 : 104, mt = 60, mb = 22, H = narrow ? 270 : 310, ph = H - mt - mb;
+  const ml = narrow ? 22 : 40, mr = narrow ? 82 : 104, mt = 60, mb = arr(opt.gates).length ? 30 : 22, H = (narrow ? 270 : 310) + (arr(opt.gates).length ? 8 : 0), ph = H - mt - mb;
   const colW = (W - ml - mr) / L.n;
   const X = i => ml + i * colW, Y = s => mt + (hi - s) / (hi - lo) * ph;
   let g = '';
@@ -70,6 +70,7 @@ function riverSVG(r, o, opt = {}) {
   const showRoll = ro && ro.states && ro.states.length === L.n + 1 && UI.justRolled !== o.id && !opt.actual;
   g += `<polyline class="rollpath" id="rp-${o.id}" points="${showRoll ? ro.states.map((s, i) => X(i).toFixed(1) + ',' + Y(s).toFixed(1)).join(' ') : ''}"/>`;
   if (showRoll) g += `<circle class="particle" cx="${X(L.n).toFixed(1)}" cy="${Y(ro.states[L.n]).toFixed(1)}" r="5"/>`;
+  for (const gt of arr(opt.gates)) { const gx = X(gt.i + 1) - colW / 2; g += `<line class="gate" x1="${gx.toFixed(1)}" x2="${gx.toFixed(1)}" y1="${mt - 4}" y2="${H - mb}"/><g class="gatef"><rect x="${(gx - 22).toFixed(1)}" y="${H - mb - 2}" width="44" height="18" rx="4"/><text x="${gx.toFixed(1)}" y="${H - mb + 11}" text-anchor="middle">绊线 ${gt.k}</text></g><title>绊线 ${gt.k}：如果看到${esc(gt.see)}</title>`; }
   for (let i = 0; i < L.n; i++) for (const s of L.cols[i].keys()) g += `<circle class="jn${i === 0 ? ' root' : ''}" cx="${X(i).toFixed(1)}" cy="${Y(s).toFixed(1)}" r="${i === 0 ? 5 : 2.6}"/>`;
   const fin = [...L.cols[L.n].entries()].sort((a, b) => b[0] - a[0]);
   let last = -99;
@@ -218,6 +219,7 @@ function optCard(r, o) {
   return `<article class="card" id="opt-${o.id}">
     <div class="card-h"><span class="let">${optLetter(r, o)}</span><h3>${esc(o.label)}</h3>${has ? `<button class="btn sm ghost" data-act="edit" data-id="${o.id}">${editing ? '完成' : '改文字'}</button>` : '<span></span>'}</div>
     ${has ? `<div id="stw-${o.id}">${statsHTML(r, o)}</div><div class="rvw" id="rvw-${o.id}">${riverSVG(r, o, {interactive: true})}</div><p class="hint">左右拖动节点上方的蓝红条来调概率；上下拖动红色虚线来设底线。线越粗，那条路越可能走到。</p>` : ''}
+    ${has ? '' : ghostRiver('还没有节点 · 让 AI 推演，或在下面手动加一个')}
     ${editing ? `<div class="nodes">${nodeRows}</div>` : has ? `<details class="ndet"><summary>节点详情（${o.nodes.length}）</summary><div class="nodes">${nodeRows}</div></details>` : '<p class="hint">还没有关键节点。</p>'}
     ${fut}
     <div class="card-f">${has ? `<button class="btn" data-act="roll" data-id="${o.id}">掷一次</button><button class="btn ghost" data-act="rollMany" data-id="${o.id}">连掷 50 次</button>${sm && sm.n ? `<span class="faint small">已掷 ${sm.n} 次</span>` : ''}` : ''}${o.nodes.length < 6 ? `<button class="btn sm ghost" data-act="addNode" data-id="${o.id}">+ 节点</button>` : ''}</div>
@@ -420,7 +422,7 @@ function animateParticle(oid) {
   const draw = (k) => { const i = Math.min(pts.length - 1, Math.floor(k)), f = k - i; const a = pts[i], b = pts[Math.min(i + 1, pts.length - 1)]; const x = a[0] + (b[0] - a[0]) * f, y = a[1] + (b[1] - a[1]) * f; c.setAttribute('cx', x.toFixed(1)); c.setAttribute('cy', y.toFixed(1)); if (pl) pl.setAttribute('points', pts.slice(0, i + 1).concat([[x, y]]).map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')); };
   if (reduceMotion) { draw(pts.length - 1); return; }
   const t0 = performance.now(), seg = 280;
-  const f = t => { const k = Math.min((t - t0) / seg, pts.length - 1); draw(k); if (k < pts.length - 1) requestAnimationFrame(f); };
+  const f = t => { const k = Math.max(0, Math.min((t - t0) / seg, pts.length - 1)); draw(k); if (k < pts.length - 1) requestAnimationFrame(f); };
   requestAnimationFrame(f);
 }
 function revealRoll(oid) {
@@ -447,5 +449,106 @@ Object.assign(ACT, {
 });
 
 let vzT; addEventListener('resize', () => { clearTimeout(vzT); vzT = setTimeout(() => { if (!composing && !document.activeElement.matches('input,textarea,select')) doRender(); }, 200); });
+
+/* ========== 定题：决策画布 ========== */
+const HZ_POS = {'3 个月': 0.1, '半年': 0.36, '1 年': 0.62, '3 年': 0.92};
+const valueTags = s => str(s).split(/[、,，;；\n]+/).map(t => t.trim()).filter(Boolean);
+function stepFrame(r) {
+  const sug = UI.sug.frame && UI.sug.frame.rid === r.id ? UI.sug.frame : null;
+  const busy = UI.busy && UI.busy.kind === 'frame';
+  const opts = r.options.map((o, i) => `<div class="fc-opt" data-anchor="1"><span class="let">${LET[i]}</span>${inp('run:options.' + o.id + '.label', o.label, {cls: 'fc-in', ph: i === 0 ? '第一条路' : i === 1 ? '第二条路' : '另一条路', label: '选项 ' + LET[i]})}${r.options.length > 1 ? `<button class="x" data-act="delOpt" data-id="${o.id}" aria-label="删除选项 ${LET[i]}">×</button>` : ''}</div>`).join('');
+  const add = r.options.length < 4 ? `<button class="fc-add" data-anchor="1" data-act="addOpt"><b>+ 再加一条路</b><span>维持现状也算一条</span></button>` : '';
+  const hz = HORIZONS.map(h => `<button class="hz${r.horizon === h ? ' on' : ''}" data-act="horizon" data-v="${h}" style="left:${HZ_POS[h] * 100}%" aria-pressed="${r.horizon === h}"><i></i><span>${h}</span></button>`).join('');
+  const tags = valueTags(r.values);
+  let sugHTML = '';
+  if (sug) {
+    sugHTML = `<div class="sug">
+      <h3>${SPARK}AI 的建议</h3>
+      ${sug.question && sug.question !== r.question ? `<div><div class="q">${esc(sug.question)}</div>${sug.why ? `<p class="muted small" style="margin-top:4px">${esc(sug.why)}</p>` : ''}<button class="btn sm" style="margin-top:8px" data-act="useQ">换成这个问法</button></div>` : ''}
+      ${sug.options.length ? `<div><p class="lab">你可能没想到的路</p><div class="adds">${sug.options.map((t, i) => `<button class="add${sug.used[i] ? ' used' : ''}" data-act="addSugOpt" data-i="${i}"${sug.used[i] ? ' disabled' : ''}>${sug.used[i] ? '已加入' : '+'} ${esc(t)}</button>`).join('')}</div></div>` : ''}
+      ${sug.door ? `<div class="small"><span class="tag ${sug.door.includes('单') ? 'one' : 'two'}">${esc(sug.door)}</span> <span class="muted">${esc(sug.doorWhy)}</span></div>` : ''}
+    </div>`;
+  }
+  return `
+  <section class="fc" id="fc" aria-label="决策画布">
+    <svg class="fc-svg" aria-hidden="true"></svg>
+    <div class="fc-grid">
+      <div class="fc-root"><span class="fc-k">要做的决定</span>${ta('run:question', r.question, {cls: 'fc-q', rows: 2, ph: '我要不要……？', label: '你要做的决定'})}</div>
+      <div class="fc-opts"><span class="fc-k">可以走的路</span>${opts}${add}</div>
+      <div class="fc-future" aria-hidden="true"></div>
+    </div>
+    <div class="fc-ruler"><span class="fc-k">推演看多远</span><div class="hz-track"><span class="hz-now">现在</span><span class="hz-fill" style="width:${(HZ_POS[r.horizon] || 0.62) * 100}%"></span>${hz}</div></div>
+    <label class="fc-floor"><span>底线</span>${inp('run:bottom', r.bottom, {cls: 'fc-floor-in', ph: '无论如何不能发生的事，例如：存款不能低于 6 个月生活费', label: '底线'})}</label>
+  </section>
+  <section class="vals"><span class="fc-k">你最在乎的</span><div class="chips">${tags.map((t, i) => `<span class="vchip">${STAR}${esc(t)}<button class="x" data-act="delVal" data-i="${i}" aria-label="删除 ${esc(t)}">×</button></span>`).join('')}<input id="val-in" class="vin" placeholder="${tags.length ? '再加一个，回车确认' : '例如：自由，回车确认'}" aria-label="添加你在乎的东西"></div></section>
+  <section class="block">${busy ? busyLine('正在看你的问题…') : `<div class="card-f"><button class="btn ai" data-act="aiFrame">${SPARK}帮我把问题问对</button><span class="hint">AI 会检查问法、补充你没想到的路，并判断它能不能撤回。</span></div>`}${errLine('frame')}${sugHTML}</section>`;
+}
+const STAR = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 .8l2.1 4.6 5 .5-3.8 3.4 1.1 5L8 11.7 3.6 14.3l1.1-5L.9 5.9l5-.5z"/></svg>';
+function drawFrame() {
+  const c = document.getElementById('fc'); if (!c) return;
+  const svg = c.querySelector('.fc-svg'); const cb = c.getBoundingClientRect(); if (!cb.width) return;
+  const root = c.querySelector('.fc-root').getBoundingClientRect(); const fut = c.querySelector('.fc-future'); const fb = fut.getBoundingClientRect();
+  const narrow = fb.width < 40;
+  const R = b => ({l: b.left - cb.left, r: b.right - cb.left, t: b.top - cb.top, b: b.bottom - cb.top, m: b.top - cb.top + b.height / 2});
+  const rt = R(root); const ax = narrow ? rt.l + 26 : rt.r, ay = narrow ? rt.b : rt.m;
+  const r = cur(); const hzx = narrow ? 0 : R(fb).l + 12 + (R(fb).r - R(fb).l - 40) * (HZ_POS[r && r.horizon] || 0.62);
+  let g = '';
+  if (!narrow) g += `<line class="fc-hz" x1="${hzx}" x2="${hzx}" y1="${R(fb).t + 30}" y2="${R(fb).b - 6}"/><text class="fc-hzt" x="${R(fb).r}" y="${R(fb).t + 14}" text-anchor="end">未来 · 推演到 ${esc((r && r.horizon) || '')}后</text>`;
+  c.querySelectorAll('[data-anchor]').forEach(el => {
+    const b = R(el.getBoundingClientRect()); const ghost = el.classList.contains('fc-add');
+    const bx = narrow ? b.l : b.l, by = b.m;
+    const d = narrow ? `M${ax},${ay} C${ax},${by} ${ax},${by} ${bx},${by}` : `M${ax},${ay} C${ax + 46},${ay} ${bx - 46},${by} ${bx},${by}`;
+    g += `<path class="${ghost ? 'fc-gl' : 'fc-tr'}" d="${d}"/>`;
+    if (!narrow && !ghost) {
+      const sx = b.r, spread = 12; [-1, 0, 1].forEach(k => { const ey = by + k * spread; g += `<path class="fc-fut" d="M${sx},${by} C${sx + 40},${by} ${hzx - 40},${ey} ${hzx},${ey}"/><circle class="fc-qd" cx="${hzx}" cy="${ey}" r="4"/>`; });
+    }
+  });
+  g += `<circle class="fc-root-dot" cx="${ax}" cy="${ay}" r="5"/>`;
+  svg.setAttribute('viewBox', `0 0 ${cb.width} ${cb.height}`); svg.setAttribute('width', cb.width); svg.setAttribute('height', cb.height); svg.innerHTML = g;
+}
+function afterRender() { drawFrame(); }
+function afterInput(el) { if (el && el.closest && el.closest('#fc')) drawFrame(); }
+document.addEventListener('keydown', e => {
+  if (e.target && e.target.id === 'val-in' && e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault(); const v = e.target.value.trim(); const r = cur(); if (!v || !r) return;
+    r.values = valueTags(r.values).concat(valueTags(v)).join('、'); touched(r); UI.focusVal = true; doRender();
+    requestAnimationFrame(() => { const el = document.getElementById('val-in'); if (el) el.focus(); });
+  }
+});
+Object.assign(ACT, {
+  delVal(t) { const r = cur(); const tags = valueTags(r.values); tags.splice(Number(t.dataset.i), 1); r.values = tags.join('、'); touched(r); doRender(); }
+});
+
+/* ========== 首页：会动的命运河 + 图形化流程 ========== */
+let DEMO = null, heroTimer = null;
+function heroHTML() {
+  if (!DEMO) DEMO = sampleRun();
+  const o = DEMO.options[2];
+  return `<figure class="hero-art"><div class="vizbox">${riverSVG(DEMO, o, {w: 520})}<figcaption class="hint">示例：「${esc(o.label)}」的命运河。线越粗越可能走到，每一颗粒子是掷出的一种未来。</figcaption></div></figure>`;
+}
+function heroTick() {
+  if (UI.view !== 'home' || !DEMO) return;
+  const o = DEMO.options[2]; const svg = document.getElementById('rv-' + o.id); if (!svg) return;
+  svg.querySelectorAll('.particle').forEach(p => p.remove());
+  UI.rolls[o.id] = Object.assign(rollOnce(o), {hist: []}); animateParticle(o.id);
+}
+function startHero() { clearInterval(heroTimer); if (reduceMotion) return; heroTimer = setInterval(heroTick, 2600); setTimeout(heroTick, 500); }
+const FLOW_ART = [
+  '<svg viewBox="0 0 120 56"><circle cx="12" cy="28" r="5" class="fa-ink"/><path class="fa-ln" d="M17 28 C40 28 50 10 74 10M17 28 H74M17 28 C40 28 50 46 74 46"/><rect x="76" y="4" width="38" height="12" rx="3" class="fa-box"/><rect x="76" y="22" width="38" height="12" rx="3" class="fa-box"/><rect x="76" y="40" width="38" height="12" rx="3" class="fa-box"/></svg>',
+  '<svg viewBox="0 0 120 56"><circle cx="60" cy="28" r="10" class="fa-ring"/><circle cx="60" cy="28" r="19" class="fa-ring"/><circle cx="60" cy="28" r="26" class="fa-ring"/><rect x="54" y="24" width="12" height="8" class="fa-me"/><rect x="72" y="10" width="8" height="8" class="fa-neu"/><path d="M38 34 l5 5 -5 5 -5 -5z" class="fa-hos"/><rect x="80" y="34" width="10" height="6" class="fa-fri"/></svg>',
+  '<svg viewBox="0 0 120 56"><path class="fa-up" stroke-width="6" d="M8 30 L44 18"/><path class="fa-dn" stroke-width="8" d="M8 30 L44 38"/><path class="fa-up" stroke-width="3" d="M44 18 L80 10M44 38 L80 26"/><path class="fa-dn" stroke-width="4" d="M44 18 L80 26M44 38 L80 48"/><circle cx="84" cy="10" r="3" class="fa-gd"/><circle cx="84" cy="26" r="5" class="fa-nt"/><circle cx="84" cy="48" r="4" class="fa-br"/><line x1="4" x2="116" y1="44" y2="44" class="fa-floor"/></svg>',
+  '<svg viewBox="0 0 120 56"><path class="fa-ln faint" d="M10 28 C40 28 50 10 100 10M10 28 C40 28 50 46 100 46"/><path class="fa-ink-ln" d="M10 28 H100"/><line x1="64" x2="64" y1="16" y2="40" class="fa-gate"/><rect x="58" y="40" width="12" height="7" rx="2" class="fa-gatef"/><circle cx="104" cy="28" r="4" class="fa-ink"/></svg>',
+  '<svg viewBox="0 0 120 56"><rect x="34" y="3" width="52" height="50" rx="3" class="fa-box"/><line x1="40" x2="80" y1="10" y2="10" class="fa-ink-ln"/><rect x="42" y="34" width="5" height="12" class="fa-dnf"/><rect x="50" y="26" width="5" height="20" class="fa-ntf"/><rect x="58" y="20" width="5" height="26" class="fa-upf"/><rect x="66" y="30" width="5" height="16" class="fa-upf"/><line x1="40" x2="80" y1="17" y2="17" class="fa-ln"/></svg>'
+];
+function flowHTML() { return `<div class="flow">${STEPS.map((s, i) => `<div><div class="fa">${FLOW_ART[i]}</div><span class="n">${s.k}</span><b>${s.name}</b><p>${esc(s.brief)}</p></div>`).join('')}</div>`; }
+const _rh = afterRender;
+afterRender = function () { _rh(); if (UI.view === 'home') startHero(); else clearInterval(heroTimer); };
+
+/* ========== 落子：绊线挂在命运河上 ========== */
+function gatesOf(r, o) { return r.choice.tripwires.map((t, k) => ({i: o.nodes.findIndex(n => n.id === t.nodeId), k: k + 1, see: t.see})).filter(g => g.i >= 0); }
+function ghostRiver(label) {
+  const W = vizW(), H = 150;
+  return `<svg class="viz ghost" viewBox="0 0 ${W} ${H}" role="img" aria-label="还没有节点"><path class="gh" d="M24 75 C${W * 0.3} 75 ${W * 0.4} 28 ${W - 30} 28M24 75 H${W - 30}M24 75 C${W * 0.3} 75 ${W * 0.4} 122 ${W - 30} 122"/><circle cx="24" cy="75" r="5" class="ghd"/><text class="tk" x="${W / 2}" y="${H / 2 - 8}" text-anchor="middle">${esc(label)}</text></svg>`;
+}
 
 route();
