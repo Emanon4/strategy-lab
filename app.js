@@ -103,49 +103,6 @@ function stepDone(r, i) {
   return !!(r.review && r.review.outcome);
 }
 
-/* ========== engine: enumerate every future ========== */
-function futures(o) {
-  const ns = o.nodes.slice(0, 6); const n = ns.length; if (!n) return [];
-  const out = [];
-  for (let m = 0; m < (1 << n); m++) {
-    let p = 1, s = 0, br = false;
-    for (let i = 0; i < n; i++) {
-      const g = (m >> i) & 1; const pi = clampInt(ns[i].p, 0, 100, 50) / 100;
-      p *= g ? pi : 1 - pi;
-      s += g ? clampInt(ns[i].up, 0, 3, 0) : clampInt(ns[i].down, -3, 0, 0);
-      if (!g && ns[i].breach) br = true;
-    }
-    if (p > 0) out.push({p, s, br});
-  }
-  return out;
-}
-function stats(o) {
-  const fs = futures(o); if (!fs.length) return null;
-  let ev = 0, good = 0, bad = 0, br = 0, worst = Infinity, best = -Infinity;
-  for (const f of fs) { ev += f.p * f.s; if (f.s > 0) good += f.p; if (f.s < 0) bad += f.p; if (f.br) br += f.p; worst = Math.min(worst, f.s); best = Math.max(best, f.s); }
-  return {fs, ev, good, bad, br, worst, best};
-}
-function scaleMax(r) { let m = 3; for (const o of r.options) for (const f of futures(o)) m = Math.max(m, Math.abs(f.s)); return m; }
-function segColor(s, M) {
-  if (s === 0) return 'color-mix(in oklab, var(--ink3) 45%, var(--surface))';
-  const t = Math.min(1, Math.abs(s) / M); const p = Math.round(45 + 55 * t);
-  return `color-mix(in oklab, var(--${s > 0 ? 'blue' : 'red'}) ${p}%, var(--surface))`;
-}
-function stripHTML(o, M, thin = false) {
-  const st = stats(o);
-  if (!st) return `<div class="strip${thin ? ' thin' : ''} none">${thin ? '' : '还没有节点'}</div>`;
-  const groups = new Map();
-  for (const f of st.fs) { const k = f.s + '|' + (f.br ? 1 : 0); const g = groups.get(k) || {s: f.s, br: f.br, p: 0}; g.p += f.p; groups.set(k, g); }
-  const gs = [...groups.values()].sort((a, b) => a.s - b.s || (a.br === b.br ? 0 : a.br ? -1 : 1));
-  const segs = gs.map(g => `<span class="seg${g.br ? ' br' : ''}" style="flex-grow:${g.p.toFixed(5)};background-color:${segColor(g.s, M)}" title="得分 ${signed(g.s)} · 概率 ${pct(g.p)}${g.br ? ' · 触底线' : ''}"></span>`).join('');
-  const zero = st.bad > 0.001 && st.bad < 0.999 ? `<span class="zero" style="left:calc(${(st.bad * 100).toFixed(2)}% - 1px)"></span>` : '';
-  return `<div class="strip${thin ? ' thin' : ''}" role="img" aria-label="好结局 ${pct(st.good)}，坏结局 ${pct(st.bad)}，触底线 ${pct(st.br)}">${segs}${thin ? '' : zero}</div>`;
-}
-function statsHTML(o) {
-  const st = stats(o); if (!st) return '';
-  return `<div class="stats"><span>期望 <b>${signed(st.ev)}</b></span><span>好结局 <b>${pct(st.good)}</b></span><span>坏结局 <b>${pct(st.bad)}</b></span><span class="${st.br > 0.0005 ? 'r' : ''}">触底线 <b>${pct(st.br)}</b></span><span>区间 <b>${signed(st.worst)} ~ ${signed(st.best)}</b></span></div>`;
-}
-
 /* ========== AI ========== */
 const UI = {view: 'home', runId: null, busy: null, err: {}, sug: {}, editing: {}, rolls: {}, justRolled: null, drawer: false, drawerMsg: '', confirm: null, aiTest: ''};
 function parseJSON(t) {
@@ -291,19 +248,19 @@ function sampleRun() {
   return {
     id: 'sample', sample: true, ts: now, updated: now - 1000, step: 4,
     question: '要不要辞掉稳定的工作，用一年时间全职做自己的项目？',
-    options: [A, B, C], horizon: '1 年', bottom: '存款不能低于 6 个月生活费', values: '长期能做自己想做的事；收入不能断',
+    options: [A, B, C], floor: -2.5, horizon: '1 年', bottom: '存款不能低于 6 个月生活费', values: '长期能做自己想做的事；收入不能断',
     actors: [
       {id: uid('a'), name: '我', side: 'self', want: '把项目做成，证明这条路走得通'},
-      {id: uid('a'), name: '家人', side: 'friend', want: '希望我生活稳定，不冒太大风险'},
-      {id: uid('a'), name: '现雇主', side: 'neutral', want: '不想失去一个熟手'},
-      {id: uid('a'), name: '同类项目', side: 'hostile', want: '抢同一批用户'},
-      {id: uid('a'), name: '用户', side: 'unknown', want: '只为真正解决问题的东西付钱'}
+      {id: uid('a'), name: '家人', side: 'friend', want: '希望我生活稳定，不冒太大风险', ring: 2, angle: 180, power: 2},
+      {id: uid('a'), name: '现雇主', side: 'neutral', want: '不想失去一个熟手', ring: 1, angle: -40, power: 3},
+      {id: uid('a'), name: '同类项目', side: 'hostile', want: '抢同一批用户', ring: 3, angle: 20, power: 2},
+      {id: uid('a'), name: '用户', side: 'unknown', want: '只为真正解决问题的东西付钱', ring: 1, angle: 120, power: 3}
     ],
     notes: [
-      {id: uid('s'), kind: 'fact', text: '现有存款够 10 个月生活费', conf: 100},
-      {id: uid('s'), kind: 'assume', text: '项目半年内能有第一批付费用户', conf: 40},
-      {id: uid('s'), kind: 'assume', text: '辞职之后效率会翻倍', conf: 50},
-      {id: uid('s'), kind: 'assume', text: '想回去上班时，还能找到同等的工作', conf: 70}
+      {id: uid('s'), kind: 'fact', text: '现有存款够 10 个月生活费', conf: 100, imp: 70},
+      {id: uid('s'), kind: 'assume', text: '项目半年内能有第一批付费用户', conf: 40, imp: 88},
+      {id: uid('s'), kind: 'assume', text: '辞职之后效率会翻倍', conf: 35, imp: 62},
+      {id: uid('s'), kind: 'assume', text: '想回去上班时，还能找到同等的工作', conf: 70, imp: 80}
     ],
     choice: {
       optionId: C.id,
@@ -351,12 +308,11 @@ function homeView() {
   const runs = DB.runs.map(norm).sort((a, b) => b.updated - a.updated);
   const items = runs.map(r => {
     const [cls, label] = runStatus(r); const o = r.options.find(x => x.id === r.choice.optionId);
-    const M = scaleMax(r);
     const confirm = UI.confirm === 'del:' + r.id;
     return `<div class="item" data-act="open" data-id="${r.id}" role="link" tabindex="0">
       <div><h3>${esc(r.question || '未命名的推演')}</h3>
         <div class="meta"><span class="badge ${cls}">${label}</span>${r.sample ? '<span class="badge sample">示例</span>' : ''}<span class="mono">${fmtDate(r.updated)}</span>${o ? `<span>选了 ${optLetter(r, o)}：${esc(o.label)}</span>` : `<span>${r.options.filter(x => x.label).length} 个选项</span>`}</div></div>
-      <div class="mini">${o ? stripHTML(o, M, true) : ''}</div>
+      <div class="mini">${miniDist(r, o || r.options.find(x => x.nodes.length), 200)}</div>
       ${confirm ? `<span class="pills"><button class="btn sm danger" data-act="del" data-id="${r.id}">确认删除</button><button class="btn sm ghost" data-act="cancel">取消</button></span>` : `<button class="x" data-act="askDel" data-id="${r.id}" aria-label="删除这局推演">×</button>`}
     </div>`;
   }).join('');
@@ -377,7 +333,7 @@ function homeView() {
     <div class="flow">${STEPS.map(s => `<div><span class="n">${s.k}</span><b>${s.name}</b><p>${esc(s.brief)}</p></div>`).join('')}</div>
     <div class="sec-h"><h2>推演档案</h2><span class="faint small">${runs.length} 局</span></div>
     <div class="list">${items || '<div class="empty">还没有推演。下次要做决定的时候，来这里跑一遍。</div>'}</div>
-    ${calib}
+    ${calib}${calibHTML(runs)}
     <a class="altcard" href="sandbox/">
       <div><span class="faint small">另一种用法</span><h3>长期沙盘</h3><p>不为某一个决定，而是长期推演你的整体局面：一回合代表一个季度，AI 扮演各方出牌，D100 骰子定结果；还有案例训练场和预测校准簿。</p></div>
       <span class="go">打开 →</span>
@@ -423,86 +379,6 @@ function stepFrame(r) {
   <section class="block">${busy ? busyLine('正在看你的问题…') : `<div class="card-f"><button class="btn ai" data-act="aiFrame">${SPARK}帮我把问题问对</button><span class="hint">AI 会检查问法、补充你没想到的路，并判断它能不能撤回。</span></div>`}${errLine('frame')}${sugHTML}</section>`;
 }
 
-function stepBoard(r) {
-  const sug = UI.sug.board && UI.sug.board.rid === r.id ? UI.sug.board : null;
-  const busy = UI.busy && UI.busy.kind === 'board';
-  const actors = r.actors.map(a => `<div class="actor">
-    <button class="symbtn" data-act="side" data-id="${a.id}" title="点一下切换阵营" aria-label="切换阵营，当前：${SIDES[a.side].label}">${sym(a.side)}</button>
-    ${inp('run:actors.' + a.id + '.name', a.name, {ph: '谁', label: '名称'})}
-    <div class="want">${inp('run:actors.' + a.id + '.want', a.want, {ph: a.side === 'self' ? '我真正想要的是什么' : '他想要什么', label: '想要什么'})}</div>
-    ${a.side === 'self' && r.actors.filter(x => x.side === 'self').length === 1 ? '<span></span>' : `<button class="x" data-act="delActor" data-id="${a.id}" aria-label="删除">×</button>`}
-  </div>`).join('');
-  const notes = r.notes.map(n => `<div class="note ${n.kind}">
-    <button class="kind" data-act="kind" data-id="${n.id}" title="切换事实 / 假设">${n.kind === 'fact' ? '事实' : '假设'}</button>
-    ${inp('run:notes.' + n.id + '.text', n.text, {ph: n.kind === 'fact' ? '一件你能查证的事' : '一个你相信、但没验证过的判断', label: '内容'})}
-    ${n.kind === 'fact' ? '<span></span>' : `<label class="conf" title="你有几成把握">${inp('run:notes.' + n.id + '.conf', n.conf, {type: 'number', num: true, extra: ' min="0" max="100"', label: '把握'})}%</label>`}
-    <button class="x" data-act="delNote" data-id="${n.id}" aria-label="删除">×</button>
-  </div>`).join('');
-  let sugHTML = '';
-  if (sug) {
-    sugHTML = `<div class="sug"><h3>${SPARK}你可能漏掉的</h3>
-      ${sug.actors.length ? `<div><p class="lab">行动者</p><div class="adds">${sug.actors.map((a, i) => `<button class="add${a.used ? ' used' : ''}" data-act="addSugActor" data-i="${i}"${a.used ? ' disabled' : ''}>${sym(a.side, 16)}${esc(a.name)}<span class="faint">· ${esc(a.want)}</span></button>`).join('')}</div></div>` : ''}
-      ${sug.assumptions.length ? `<div><p class="lab">隐含的假设</p><div class="adds">${sug.assumptions.map((t, i) => `<button class="add${sug.usedA[i] ? ' used' : ''}" data-act="addSugNote" data-i="${i}"${sug.usedA[i] ? ' disabled' : ''}>${sug.usedA[i] ? '已加入' : '+'} ${esc(t)}</button>`).join('')}</div></div>` : ''}
-    </div>`;
-  }
-  return `
-  <section class="block"><h2>行动者</h2><div class="rows">${actors}</div>
-    <div class="card-f"><button class="btn sm" data-act="addActor">+ 加一方</button></div>
-    <div class="legend"><span>${sym('self', 14)}我</span><span>${sym('friend', 14)}友方</span><span>${sym('hostile', 14)}对手</span><span>${sym('neutral', 14)}中立</span><span>${sym('unknown', 14)}环境 / 未知</span><span>沿用北约 APP-6 军标的框形，点图形切换。</span></div></section>
-  <section class="block"><h2>事实与假设</h2><p class="hint">黑字写事实，蓝字写假设，并标上你有几成把握。很多结论其实站在假设上。</p><div class="rows">${notes || ''}</div>
-    <div class="card-f"><button class="btn sm" data-act="addNote" data-k="fact">+ 事实</button><button class="btn sm" data-act="addNote" data-k="assume">+ 假设</button></div></section>
-  <section class="block">${busy ? busyLine('正在找你漏掉的东西…') : `<div class="card-f"><button class="btn ai" data-act="aiBoard">${SPARK}我漏了什么？</button><span class="hint">AI 会补上你没想到的行动者和隐含假设，由你决定要不要加。</span></div>`}${errLine('board')}${sugHTML}</section>`;
-}
-
-function stepPlay(r) {
-  const os = r.options.filter(o => o.label);
-  if (os.length < 1) return '<section class="block"><p class="muted">先回到「定题」写下至少一条路。</p></section>';
-  const M = scaleMax(r); const busy = UI.busy && UI.busy.kind === 'sim';
-  const any = os.some(o => o.nodes.length);
-  const confirming = UI.confirm === 'sim';
-  const simBtn = busy ? busyLine('各方在出牌，裁判在估概率…通常需要半分钟到一分钟')
-    : confirming ? `<div class="card-f"><span class="small">重新推演会替换现有的全部节点。</span><button class="btn sm ai" data-act="aiSim">确认重新推演</button><button class="btn sm ghost" data-act="cancel">取消</button></div>`
-    : `<div class="card-f"><button class="btn ai" data-act="${any ? 'askSim' : 'aiSim'}">${SPARK}${any ? '重新推演全部' : '让 AI 推演全部选项'}</button><span class="hint">也可以在每条路下面手动加节点。</span></div>`;
-  const compare = any ? `<section class="compare" aria-label="各选项的未来对比">
-      <div class="scale"><span>← 坏的未来</span><span>好的未来 →</span></div>
-      ${os.map(o => `<div class="crow" data-act="jump" data-id="${o.id}"><span class="let">${optLetter(r, o)}</span><div><div class="t">${esc(o.label)}</div>${stripHTML(o, M)}<div style="margin-top:6px">${statsHTML(o)}</div></div></div>`).join('')}
-      <div class="key"><span><i style="background:${segColor(-M, M)}"></i>坏结局</span><span><i style="background:${segColor(M, M)}"></i>好结局</span><span><i style="background:${segColor(-M, M)};background-image:repeating-linear-gradient(135deg,transparent 0 3px,var(--hatch) 3px 5px)"></i>触底线</span><span>宽度 = 概率 · 竖线 = 好坏分界</span></div>
-    </section>` : '';
-  return `<section class="block">${simBtn}${errLine('sim')}</section>${compare}${os.map(o => optCard(r, o, M)).join('')}`;
-}
-function optCard(r, o, M) {
-  const editing = !!UI.editing[o.id];
-  const roll = UI.rolls[o.id];
-  const nodes = o.nodes.map(n => {
-    const side = sideOfActor(r, n.actor);
-    if (editing) {
-      const b = 'run:options.' + o.id + '.nodes.' + n.id + '.';
-      return `<div class="nedit">
-        <div class="r3">${inp(b + 'text', n.text, {ph: '会发生什么不确定的事', label: '节点'})}${inp(b + 'actor', n.actor, {ph: '谁', label: '谁的反应', extra: ' list="actors-dl"'})}</div>
-        <div class="r4">${inp(b + 'good', n.good, {ph: '有利时', label: '有利时'})}<select class="field" id="${fid(b + 'up')}" data-bind="${b}up" data-type="num" data-rerender="1" aria-label="有利时的影响">${[0, 1, 2, 3].map(v => `<option value="${v}"${clampInt(n.up, 0, 3, 0) === v ? ' selected' : ''}>+${v}</option>`).join('')}</select></div>
-        <div class="r4">${inp(b + 'bad', n.bad, {ph: '不利时', label: '不利时'})}<select class="field" id="${fid(b + 'down')}" data-bind="${b}down" data-type="num" data-rerender="1" aria-label="不利时的影响">${[0, -1, -2, -3].map(v => `<option value="${v}"${clampInt(n.down, -3, 0, 0) === v ? ' selected' : ''}>${v === 0 ? '±0' : '−' + Math.abs(v)}</option>`).join('')}</select></div>
-        <div class="card-f"><label class="small muted" for="${fid(b + 'p')}">有利概率</label><span class="conf">${inp(b + 'p', n.p, {type: 'number', num: true, re: true, extra: ' min="0" max="100"', label: '有利概率'})}%</span><label class="cb"><input type="checkbox" id="${fid(b + 'breach')}" data-bind="${b}breach" data-type="bool" data-rerender="1"${n.breach ? ' checked' : ''}>不利时触底线</label><span class="sp" style="flex:1"></span><button class="btn sm ghost danger" data-act="delNode" data-o="${o.id}" data-id="${n.id}">删除节点</button></div>
-      </div>`;
-    }
-    return `<div class="node">${sym(side, 18)}<div><div class="t">${esc(n.text)}</div>${n.actor ? `<div class="who">${esc(n.actor)}</div>` : ''}
-      <div class="oc"><span class="s g">顺 ${signed(n.up)}</span><span>${esc(n.good)}</span><span></span><span class="s b">逆 ${signed(n.down)}</span><span>${esc(n.bad)}</span>${n.breach ? '<span class="tag br">触底线</span>' : '<span></span>'}</div></div>
-      <div class="p">${clampInt(n.p, 0, 100, 50)}%<small>有利</small></div></div>`;
-  }).join('');
-  let fut = '';
-  if (roll && o.nodes.length) {
-    const anim = UI.justRolled === o.id && !reduceMotion;
-    fut = `<div class="future" aria-live="polite"><div class="future-h"><b>掷出的一种未来</b><span class="mono">${signed(roll.score)}</span>${roll.breach ? '<span class="tag br">碰到了底线</span>' : ''}<span class="faint small">第 ${roll.hist.length} 次</span></div>
-      ${roll.res.map((x, i) => `<div class="fr${anim ? ' pre' : ''}" data-i="${i}"><span class="d">${x.d}/${x.p}</span><span class="v ${x.ok ? 'g' : 'b'}">${x.ok ? '顺' : '逆'}</span><span>${esc(x.txt)}</span></div>`).join('')}
-      <div class="hist" title="历次掷出的结果">${roll.hist.map(s => `<i style="background:${segColor(s, M)}"></i>`).join('')}</div></div>`;
-  }
-  return `<article class="card" id="opt-${o.id}">
-    <div class="card-h"><span class="let">${optLetter(r, o)}</span><h3>${esc(o.label)}</h3>${o.nodes.length ? `<button class="btn sm ghost" data-act="edit" data-id="${o.id}">${editing ? '完成' : '调整'}</button>` : '<span></span>'}</div>
-    ${o.nodes.length ? stripHTML(o, M) + statsHTML(o) : ''}
-    <div class="nodes">${nodes || '<p class="hint">还没有关键节点。</p>'}</div>
-    ${fut}
-    <div class="card-f">${o.nodes.length ? `<button class="btn" data-act="roll" data-id="${o.id}">掷一次</button>` : ''}${o.nodes.length < 6 ? `<button class="btn sm ghost" data-act="addNode" data-id="${o.id}">+ 节点</button>` : ''}</div>
-  </article>`;
-}
 function sideOfActor(r, name) {
   const n = str(name); if (!n) return 'unknown';
   const a = r.actors.find(a => a.name && (a.name === n || n.includes(a.name) || a.name.includes(n)));
@@ -510,10 +386,10 @@ function sideOfActor(r, name) {
 }
 
 function stepChoose(r) {
-  const os = r.options.filter(o => o.label); const M = scaleMax(r);
+  const os = r.options.filter(o => o.label);
   const choices = os.map(o => `<button class="choice" role="radio" aria-checked="${r.choice.optionId === o.id}" data-act="choose" data-id="${o.id}">
     <span class="radio" aria-hidden="true"></span><span class="let">${optLetter(r, o)}</span>
-    <span><span class="t" style="display:block">${esc(o.label)}</span>${o.nodes.length ? stripHTML(o, M, true) + `<span style="display:block;margin-top:8px">${statsHTML(o)}</span>` : '<span class="hint">还没推演</span>'}</span>
+    <span><span class="t" style="display:block">${esc(o.label)}</span>${o.nodes.length ? miniDist(r, o, 320) + statsHTML(r, o) : '<span class="hint">还没推演</span>'}</span>
   </button>`).join('');
   const o = r.options.find(x => x.id === r.choice.optionId);
   if (!o) return `<section class="block"><h2>你选哪一条</h2><div class="choices" role="radiogroup">${choices}</div></section>`;
@@ -542,13 +418,13 @@ function stepChoose(r) {
 
 function docText(r) {
   const o = r.options.find(x => x.id === r.choice.optionId); if (!o) return '';
-  const st = stats(o); const L = [];
+  const st = stats(o, floorOf(r)); const L = [];
   L.push(`战略推演 · 决策书（${fmtDate(r.decidedAt || r.updated)}）`, '');
   L.push('问题：' + r.question);
   L.push(`我的选择：${optLetter(r, o)}. ${o.label}`);
   if (r.choice.why) L.push('为什么：' + r.choice.why);
-  if (st) L.push(`推演：期望 ${signed(st.ev)}，好结局 ${pct(st.good)}，触底线 ${pct(st.br)}`);
-  r.options.filter(x => x !== o && x.label).forEach(x => { const s = stats(x); L.push(`　对比 ${optLetter(r, x)}. ${x.label}${s ? `：期望 ${signed(s.ev)}，好结局 ${pct(s.good)}，触底线 ${pct(s.br)}` : ''}`); });
+  if (st) L.push(`推演：期望 ${signed(st.ev)}，好结局 ${pct(st.good)}，触底 ${pct(st.br)}`);
+  r.options.filter(x => x !== o && x.label).forEach(x => { const s = stats(x, floorOf(r)); L.push(`　对比 ${optLetter(r, x)}. ${x.label}${s ? `：期望 ${signed(s.ev)}，好结局 ${pct(s.good)}，触底线 ${pct(s.br)}` : ''}`); });
   const as = r.notes.filter(n => n.kind === 'assume' && n.text);
   if (as.length) { L.push('', '我在赌的假设：'); as.forEach(n => L.push(`- ${n.text}（把握 ${n.conf}%）`)); }
   if (r.choice.premortem) { L.push('', '它可能这样失败：'); r.choice.premortem.split('\n').filter(Boolean).forEach(t => L.push('- ' + t)); }
@@ -561,11 +437,11 @@ function docText(r) {
 function stepDoc(r) {
   const o = r.options.find(x => x.id === r.choice.optionId);
   if (!o) return `<section class="block"><p class="muted">还没有落子。回到「落子」选一条路，这里就会生成你的决策书。</p><div><button class="btn" data-act="step" data-n="3">去落子</button></div></section>`;
-  const st = stats(o); const M = scaleMax(r);
+  const F = floorOf(r); const st = stats(o, F);
   const as = r.notes.filter(n => n.kind === 'assume' && n.text);
   const pm = r.choice.premortem.split('\n').map(str).filter(Boolean);
   const ts = r.choice.tripwires.filter(t => t.see || t.do);
-  const cmp = r.options.filter(x => x.label).map(x => { const s = stats(x); return `<tr class="${x === o ? 'me' : ''}"><td>${optLetter(r, x)}</td><td>${esc(x.label)}</td><td class="n">${s ? signed(s.ev) : '—'}</td><td class="n">${s ? pct(s.good) : '—'}</td><td class="n" style="${s && s.br > 0.0005 ? 'color:var(--red)' : ''}">${s ? pct(s.br) : '—'}</td></tr>`; }).join('');
+  const cmp = r.options.filter(x => x.label).map(x => { const s = stats(x, F); return `<tr class="${x === o ? 'me' : ''}"><td>${optLetter(r, x)}</td><td>${esc(x.label)}</td><td class="n">${s ? signed(s.ev) : '—'}</td><td class="n">${s ? pct(s.good) : '—'}</td><td class="n" style="${s && s.br > 0.0005 ? 'color:var(--red)' : ''}">${s ? pct(s.br) : '—'}</td></tr>`; }).join('');
   const due = r.choice.reviewDate && r.choice.reviewDate <= todayISO();
   const rv = r.review || {};
   const cell = (out, proc, title, desc) => `<div class="c${rv.outcome === out && rv.process === proc ? ' on' : ''}"><b>${title}</b>${desc}</div>`;
@@ -573,7 +449,7 @@ function stepDoc(r) {
     <div class="doc-h"><span class="ttl">决策书</span><span class="meta">战略推演<br>${fmtDate(r.decidedAt || r.updated)}</span></div>
     <div class="sec"><span>问题</span><div class="q">${esc(r.question)}</div></div>
     <div class="sec"><span>我的选择</span><div><div class="big">${optLetter(r, o)}. ${esc(o.label)}</div>${r.choice.why ? `<p class="muted" style="margin-top:6px">${esc(r.choice.why)}</p>` : ''}</div></div>
-    ${st ? `<div class="sec"><span>推演</span><div style="display:grid;gap:10px">${stripHTML(o, M)}<div style="overflow-x:auto"><table class="cmp"><tr class="faint"><td></td><td>选项</td><td class="n">期望</td><td class="n">好结局</td><td class="n">触底线</td></tr>${cmp}</table></div></div></div>` : ''}
+    ${st ? `<div class="sec"><span>推演</span><div style="display:grid;gap:10px;min-width:0">${riverSVG(r, o, {actual: (r.review || {}).actual, w: Math.min(vizW(), 560)})}<div style="overflow-x:auto"><table class="cmp"><tr class="faint"><td></td><td>选项</td><td class="n">期望</td><td class="n">好结局</td><td class="n">触底</td></tr>${cmp}</table></div></div></div>` : ''}
     ${as.length ? `<div class="sec"><span>我在赌的</span><ul>${as.map(n => `<li>${esc(n.text)} <span class="mono faint">${n.conf}%</span></li>`).join('')}</ul></div>` : ''}
     ${pm.length ? `<div class="sec"><span>可能的败因</span><ul>${pm.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
     ${ts.length ? `<div class="sec"><span>绊线</span><ul>${ts.map(t => `<li>如果看到<b>${esc(t.see)}</b>，我就${esc(t.do)}</li>`).join('')}</ul></div>` : ''}
@@ -588,6 +464,7 @@ function stepDoc(r) {
       <div><p class="lab">结果怎样</p><div class="seg2"><button data-act="rv" data-f="outcome" data-v="good" aria-pressed="${rv.outcome === 'good'}">令我满意</button><button data-act="rv" data-f="outcome" data-v="bad" aria-pressed="${rv.outcome === 'bad'}">不满意</button></div></div>
       <div><p class="lab">回头看，当时的推理</p><div class="seg2"><button data-act="rv" data-f="process" data-v="solid" aria-pressed="${rv.process === 'solid'}">站得住</button><button data-act="rv" data-f="process" data-v="sloppy" aria-pressed="${rv.process === 'sloppy'}">有明显漏洞</button></div></div>
     </div>
+    ${reviewActualHTML(r, o)}
     <div class="matrix"><span></span><span class="h">结果满意</span><span class="h">结果不满意</span>
       <span class="h">推理站得住</span>${cell('good', 'solid', '应得的成功', '推理和结果一致。')}${cell('bad', 'solid', '运气不好', '决定本身没错，不必自责。')}
       <span class="h">推理有漏洞</span>${cell('good', 'sloppy', '侥幸', '结果好，但别当成本事。')}${cell('bad', 'sloppy', '该学的一课', '找出漏洞，下次补上。')}
@@ -642,10 +519,6 @@ function doRender() {
   document.title = UI.view === 'run' && getRun(UI.runId) ? (getRun(UI.runId).question || '新的推演') + ' · 战略推演' : '战略推演';
 }
 function focusId(id) { requestAnimationFrame(() => { const el = document.getElementById(id); if (el) el.focus(); }); }
-function revealRoll(oid) {
-  const rows = document.querySelectorAll(`#opt-${oid} .fr.pre`);
-  rows.forEach((el, i) => setTimeout(() => el.classList.remove('pre'), 120 + i * 260));
-}
 let toastT;
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 4200); }
 
@@ -742,7 +615,7 @@ const ACT = {
         id: uid('n'), actor: str(x.actor), text: str(x.text), p: clampInt(x.p, 1, 99, 50), good: str(x.good), bad: str(x.bad),
         up: clampInt(x.up, 0, 3, 1), down: clampInt(x.down, -3, 0, -1), breach: !!(x.breach === true || x.breach === 'true') && !!r2.bottom
       })).filter(x => x.text);
-      if (nodes.length) { o.nodes = nodes; n++; delete UI.rolls[o.id]; }
+      if (nodes.length) { o.nodes = nodes; n++; delete UI.rolls[o.id]; delete UI.samples[o.id]; }
     });
     touched(r2); doRender();
     if (!n) UI.err.sim = 'AI 没有给出可用的节点，再试一次。'; else toast('推演完成。点「调整」可以改任何一个概率。');
@@ -753,10 +626,10 @@ const ACT = {
   addNode(t) {
     const r = cur(); const o = r.options.find(x => x.id === t.dataset.id); if (!o) return;
     const n = {id: uid('n'), actor: '', text: '', p: 50, good: '', bad: '', up: 1, down: -1, breach: false};
-    o.nodes.push(n); UI.editing[o.id] = true; delete UI.rolls[o.id]; touched(r); doRender();
+    o.nodes.push(n); UI.editing[o.id] = true; delete UI.rolls[o.id]; delete UI.samples[o.id]; touched(r); doRender();
     focusId(fid('run:options.' + o.id + '.nodes.' + n.id + '.text'));
   },
-  delNode(t) { const r = cur(); const o = r.options.find(x => x.id === t.dataset.o); if (!o) return; o.nodes = o.nodes.filter(n => n.id !== t.dataset.id); delete UI.rolls[o.id]; touched(r); doRender(); },
+  delNode(t) { const r = cur(); const o = r.options.find(x => x.id === t.dataset.o); if (!o) return; o.nodes = o.nodes.filter(n => n.id !== t.dataset.id); delete UI.rolls[o.id]; delete UI.samples[o.id]; touched(r); doRender(); },
   roll(t) {
     const r = cur(); const o = r.options.find(x => x.id === t.dataset.id); if (!o || !o.nodes.length) return;
     const res = o.nodes.map(n => { const d = d100(); const p = clampInt(n.p, 0, 100, 50); const ok = d <= p; return {d, p, ok, txt: (ok ? n.good : n.bad) || n.text, s: ok ? clampInt(n.up, 0, 3, 0) : clampInt(n.down, -3, 0, 0), br: !ok && !!n.breach}; });
@@ -821,5 +694,3 @@ function ensureDatalist() {
   const r = UI.view === 'run' ? getRun(UI.runId) : null;
   dl.innerHTML = r ? r.actors.filter(a => a.name).map(a => `<option value="${esc(a.name)}">`).join('') : '';
 }
-
-route();
